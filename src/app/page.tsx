@@ -408,12 +408,12 @@ export default function HomePage() {
             <AboutItem>
               <span className="icon">👤</span>
               <div className="label">이름</div>
-              <div className="value">웹앱 포트폴리오</div>
+              <div className="value">이은덕</div>
             </AboutItem>
             <AboutItem>
               <span className="icon">📧</span>
               <div className="label">이메일</div>
-              <div className="value">contact@portfolio.com</div>
+              <div className="value">deokslife@naver.com</div>
             </AboutItem>
             <AboutItem>
               <span className="icon">📍</span>
