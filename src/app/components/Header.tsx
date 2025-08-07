@@ -81,7 +81,7 @@ export default function Header({ appCount = 0, onSettingsClick }: HeaderProps) {
     <HeaderContainer>
       <HeaderContent>
         <Brand>
-          <Title>EunDeok&apos;s AI Vibe Coding Portfolio</Title>
+          <Title>EunDeok&apos;s AI Vibe Coding Portfolio</Titleㅁ
         </Brand>
         <Stats>
           <StatItem>
