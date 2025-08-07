@@ -73,10 +73,9 @@ const StatItem = styled.div`
 
 interface HeaderProps {
   appCount: number;
-  onSettingsClick: () => void;
 }
 
-export default function Header({ appCount = 0, onSettingsClick }: HeaderProps) {
+export default function Header({ appCount = 0 }: HeaderProps) {
   return (
     <HeaderContainer>
       <HeaderContent>
@@ -86,9 +85,6 @@ export default function Header({ appCount = 0, onSettingsClick }: HeaderProps) {
         <Stats>
           <StatItem>
             프로젝트 {appCount}개
-          </StatItem>
-          <StatItem onClick={onSettingsClick}>
-            관리
           </StatItem>
         </Stats>
       </HeaderContent>

@@ -241,6 +241,8 @@ interface App {
   github_url?: string;
   image_url?: string;
   tech_stack?: string;
+  category?: string;
+  development_date?: string;
 }
 
 interface AppFormProps {
@@ -257,6 +259,8 @@ export default function AppForm({ app, onSubmit, onCancel }: AppFormProps) {
     github_url: '',
     image_url: '',
     tech_stack: '',
+    category: '웹 프로젝트',
+    development_date: '',
     admin_password: ''
   })
   const [loading, setLoading] = useState(false)
@@ -275,6 +279,8 @@ export default function AppForm({ app, onSubmit, onCancel }: AppFormProps) {
         github_url: app.github_url || '',
         image_url: app.image_url || '',
         tech_stack: app.tech_stack || '',
+        category: (app as any).category || '웹 프로젝트',
+        development_date: (app as any).development_date || '',
         admin_password: ''
       })
       if (app.image_url) {
@@ -408,7 +414,8 @@ export default function AppForm({ app, onSubmit, onCancel }: AppFormProps) {
         onSubmit()
       } else {
         const data = await response.json()
-        alert(data.error || '저장에 실패했습니다.')
+        console.error('Submit error response:', data)
+        alert(data.error || `저장에 실패했습니다. (${response.status})`)
       }
     } catch (error) {
       console.error('앱 저장에 실패했습니다:', error)
@@ -500,6 +507,29 @@ export default function AppForm({ app, onSubmit, onCancel }: AppFormProps) {
               value={formData.tech_stack}
               onChange={handleChange}
               placeholder="React, Node.js, MongoDB 등"
+            />
+          </FormGroup>
+
+          <FormGroup>
+            <Label htmlFor="category">프로젝트 분류</Label>
+            <Input
+              type="text"
+              id="category"
+              name="category"
+              value={formData.category}
+              onChange={handleChange}
+              placeholder="웹 프로젝트, 모바일 앱, 데스크톱 프로그램 등"
+            />
+          </FormGroup>
+
+          <FormGroup>
+            <Label htmlFor="development_date">개발 시기</Label>
+            <Input
+              type="month"
+              id="development_date"
+              name="development_date"
+              value={formData.development_date}
+              onChange={handleChange}
             />
           </FormGroup>
 

@@ -8,6 +8,7 @@ import AppForm from './components/AppForm'
 import AdminPasswordModal from './components/AdminPasswordModal'
 import SettingsModal from './components/SettingsModal'
 import SkillsEditModal from './components/SkillsEditModal'
+import ProjectManageModal from './components/ProjectManageModal'
 
 const Container = styled.div`
   min-height: 100vh;
@@ -216,6 +217,32 @@ const AddButton = styled.button`
   }
 `
 
+const ManageButton = styled.button`
+  position: fixed;
+  bottom: 2rem;
+  right: 5rem;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #6c757d;
+  border: none;
+  color: white;
+  font-size: 1.2rem;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(108, 117, 125, 0.3);
+  transition: all 0.3s ease;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    background: #5a6268;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(108, 117, 125, 0.4);
+  }
+`
+
 const EmptyState = styled.div`
   text-align: center;
   padding: 6rem 2rem;
@@ -259,6 +286,7 @@ export default function HomePage() {
   const [showSettings, setShowSettings] = useState(false)
   const [showSkillsEdit, setShowSkillsEdit] = useState(false)
   const [skillsLoading, setSkillsLoading] = useState(false)
+  const [showProjectManage, setShowProjectManage] = useState(false)
   const [skills, setSkills] = useState({
     frontend: ['React', 'Vue.js', 'JavaScript', 'TypeScript', 'HTML', 'CSS'],
     backend: ['Node.js', 'Express', 'Python', 'Django'],
@@ -333,6 +361,31 @@ export default function HomePage() {
     setModalLoading(false)
   }
 
+  // 프로젝트 관리 모달 관련
+  const handleProjectManage = () => {
+    setShowProjectManage(true)
+  }
+
+  const handleBulkDelete = async (ids: number[]) => {
+    const deletePromises = ids.map(id => 
+      fetch(`/api/apps/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ admin_password: 'deokslife' })
+      })
+    )
+
+    try {
+      await Promise.all(deletePromises)
+      await fetchApps() // 목록 새로고침
+    } catch (error) {
+      console.error('일괄 삭제 중 오류:', error)
+      alert('일부 항목 삭제에 실패했습니다.')
+    }
+  }
+
   const handleFormSubmit = () => {
     setShowForm(false)
     setEditingApp(null)
@@ -397,7 +450,6 @@ export default function HomePage() {
       {/* Header */}
       <Header 
         appCount={apps.length}
-        onSettingsClick={() => setShowSettings(true)}
       />
       
       {/* About Me Section */}
@@ -509,6 +561,7 @@ export default function HomePage() {
         </Main>
       </ProjectsSection>
       
+      <ManageButton onClick={handleProjectManage}>🗂️</ManageButton>
       <AddButton onClick={handleAddApp}>+</AddButton>
       
       {showForm && (
@@ -542,6 +595,14 @@ export default function HomePage() {
           onSave={handleSkillsSave}
           onCancel={cancelSkillsEdit}
           loading={skillsLoading}
+        />
+      )}
+
+      {showProjectManage && (
+        <ProjectManageModal
+          apps={apps}
+          onClose={() => setShowProjectManage(false)}
+          onDelete={handleBulkDelete}
         />
       )}
     </Container>

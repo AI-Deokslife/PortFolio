@@ -28,6 +28,7 @@ const ProjectType = styled.div`
   z-index: 2;
 `
 
+
 const ImageContainer = styled.div`
   width: 100%;
   height: 200px;
@@ -54,12 +55,32 @@ const CardContent = styled.div`
   padding: 1.5rem;
 `
 
+const TitleRow = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.5rem;
+  gap: 1rem;
+`
+
 const Title = styled.h3`
   color: #2c3e50;
-  margin-bottom: 0.5rem;
+  margin: 0;
   font-size: 1.1rem;
   font-weight: 700;
   line-height: 1.3;
+  flex: 1;
+`
+
+const DevelopmentDateInline = styled.div`
+  color: #6c757d;
+  font-size: 0.8rem;
+  font-weight: 500;
+  white-space: nowrap;
+  background: #f8f9fa;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  border: 1px solid #e9ecef;
 `
 
 const Description = styled.p`
@@ -71,6 +92,51 @@ const Description = styled.p`
   -webkit-box-orient: vertical;
   overflow: hidden;
   font-size: 0.9rem;
+  white-space: pre-line; /* 줄바꿈과 공백 보존 */
+`
+
+const LinksSection = styled.div`
+  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+`
+
+const LinkItem = styled.a`
+  color: #007bff;
+  text-decoration: none;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+  
+  &:hover {
+    text-decoration: underline;
+    color: #0056b3;
+  }
+  
+  .link-icon {
+    font-size: 0.8rem;
+    opacity: 0.7;
+  }
+`
+
+const TechStackSection = styled.div`
+  margin-bottom: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+`
+
+const TechStackTag = styled.span`
+  background: #fff3cd;
+  color: #000;
+  padding: 0.3rem 0.8rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border: 1px solid #ffeaa7;
 `
 
 const Actions = styled.div`
@@ -117,6 +183,8 @@ interface App {
   github_url?: string;
   image_url?: string;
   tech_stack?: string;
+  category?: string;
+  development_date?: string;
 }
 
 interface AppCardProps {
@@ -128,10 +196,16 @@ interface AppCardProps {
 export default function AppCard({ app, onEdit, onDelete }: AppCardProps) {
   const handleEdit = () => onEdit(app)
   const handleDelete = () => onDelete(app.id)
+  
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return null
+    const [year, month] = dateString.split('-')
+    return `${year}년 ${parseInt(month)}월`
+  }
 
   return (
     <Card>
-      <ProjectType>웹 프로젝트</ProjectType>
+      <ProjectType>{app.category || '웹 프로젝트'}</ProjectType>
       <ImageContainer>
         {app.image_url ? (
           <AppImage 
@@ -144,8 +218,36 @@ export default function AppCard({ app, onEdit, onDelete }: AppCardProps) {
       </ImageContainer>
       
       <CardContent>
-        <Title>{app.title}</Title>
+        <TitleRow>
+          <Title>{app.title}</Title>
+          {app.development_date && (
+            <DevelopmentDateInline>{formatDate(app.development_date)}</DevelopmentDateInline>
+          )}
+        </TitleRow>
         <Description>{app.description}</Description>
+        
+        <LinksSection>
+          {app.url && (
+            <LinkItem href={app.url} target="_blank" rel="noopener noreferrer">
+              <span className="link-icon">🌐</span>
+              웹사이트 바로가기
+            </LinkItem>
+          )}
+          {app.github_url && (
+            <LinkItem href={app.github_url} target="_blank" rel="noopener noreferrer">
+              <span className="link-icon">⚡</span>
+              GitHub 저장소
+            </LinkItem>
+          )}
+        </LinksSection>
+
+        {app.tech_stack && (
+          <TechStackSection>
+            {app.tech_stack.split(',').map((tech, index) => (
+              <TechStackTag key={index}>{tech.trim()}</TechStackTag>
+            ))}
+          </TechStackSection>
+        )}
         
         <Actions>
           <ActionButton onClick={handleEdit}>
