@@ -262,7 +262,7 @@ export default function AppForm({ app, onSubmit, onCancel }: AppFormProps) {
     tech_stack: '',
     category: '웹 프로젝트',
     development_date: '',
-    admin_password: ''
+    admin_password: typeof window !== 'undefined' ? (localStorage.getItem('adminPassword') || 'deokslife') : 'deokslife'
   })
   const [loading, setLoading] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
@@ -273,6 +273,7 @@ export default function AppForm({ app, onSubmit, onCancel }: AppFormProps) {
 
   useEffect(() => {
     if (app) {
+      const storedPassword = getStoredPassword()
       setFormData({
         title: app.title || '',
         description: app.description || '',
@@ -282,7 +283,7 @@ export default function AppForm({ app, onSubmit, onCancel }: AppFormProps) {
         tech_stack: app.tech_stack || '',
         category: (app as any).category || '웹 프로젝트',
         development_date: (app as any).development_date || '',
-        admin_password: ''
+        admin_password: storedPassword // localStorage에서 저장된 비밀번호 자동 입력
       })
       if (app.image_url) {
         setUploadedImage({
@@ -291,6 +292,13 @@ export default function AppForm({ app, onSubmit, onCancel }: AppFormProps) {
           size: 0
         })
       }
+    } else {
+      // 새 프로젝트 추가일 때도 저장된 비밀번호 자동 입력
+      const storedPassword = getStoredPassword()
+      setFormData(prevData => ({
+        ...prevData,
+        admin_password: storedPassword
+      }))
     }
   }, [app])
 
