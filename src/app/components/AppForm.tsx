@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import styled from 'styled-components'
+import { getStoredPassword } from '../utils/passwordUtils'
 
 const Overlay = styled.div`
   position: fixed;

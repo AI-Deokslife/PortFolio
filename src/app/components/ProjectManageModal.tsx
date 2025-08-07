@@ -229,6 +229,10 @@ export default function ProjectManageModal({ apps, onClose, onDelete }: ProjectM
   const [selectedIds, setSelectedIds] = useState<number[]>([])
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [showPasswordChange, setShowPasswordChange] = useState(false)
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [currentStoredPassword, setCurrentStoredPassword] = useState('deokslife')
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return '미지정'
@@ -236,15 +240,70 @@ export default function ProjectManageModal({ apps, onClose, onDelete }: ProjectM
     return `${year}년 ${parseInt(month)}월`
   }
 
-  const handlePasswordSubmit = (e: React.FormEvent) => {
+  // localStorage에서 저장된 비밀번호 불러오기
+  useEffect(() => {
+    const savedPassword = localStorage.getItem('adminPassword')
+    if (savedPassword) {
+      setCurrentStoredPassword(savedPassword)
+    }
+  }, [])
+
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    const expectedPassword = 'deokslife'
-    if (password.trim() === expectedPassword) {
+    // 먼저 localStorage 저장된 비밀번호 확인
+    if (password.trim() === currentStoredPassword) {
       setIsAuthenticated(true)
-    } else {
-      alert('관리자 비밀번호가 일치하지 않습니다.')
+      return
     }
+
+    // localStorage와 다르면 서버의 기본 비밀번호 확인
+    try {
+      const response = await fetch('/api/password-check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: password.trim() })
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        if (result.valid) {
+          setIsAuthenticated(true)
+          // 서버 비밀번호가 맞으면 localStorage에도 저장
+          localStorage.setItem('adminPassword', password.trim())
+          setCurrentStoredPassword(password.trim())
+        } else {
+          alert('관리자 비밀번호가 일치하지 않습니다.')
+        }
+      } else {
+        alert('관리자 비밀번호가 일치하지 않습니다.')
+      }
+    } catch (error) {
+      alert('비밀번호 확인 중 오류가 발생했습니다.')
+    }
+  }
+
+  const handlePasswordChange = (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (newPassword.length < 4) {
+      alert('새 비밀번호는 최소 4자 이상이어야 합니다.')
+      return
+    }
+
+    if (newPassword !== confirmPassword) {
+      alert('새 비밀번호와 확인 비밀번호가 일치하지 않습니다.')
+      return
+    }
+
+    // localStorage에 새 비밀번호 저장
+    localStorage.setItem('adminPassword', newPassword)
+    setCurrentStoredPassword(newPassword)
+    
+    alert('비밀번호가 성공적으로 변경되었습니다.')
+    setShowPasswordChange(false)
+    setNewPassword('')
+    setConfirmPassword('')
   }
 
   const handleSelectAll = (checked: boolean) => {
@@ -359,6 +418,13 @@ export default function ProjectManageModal({ apps, onClose, onDelete }: ProjectM
             </SelectedCount>
 
             <Actions>
+              <Button 
+                type="button" 
+                className="secondary" 
+                onClick={() => setShowPasswordChange(!showPasswordChange)}
+              >
+                비밀번호 변경
+              </Button>
               <Button type="button" className="secondary" onClick={onClose}>
                 닫기
               </Button>
@@ -371,6 +437,48 @@ export default function ProjectManageModal({ apps, onClose, onDelete }: ProjectM
                 {loading ? '삭제 중...' : `선택 항목 삭제 (${selectedIds.length})`}
               </Button>
             </Actions>
+
+            {showPasswordChange && (
+              <form onSubmit={handlePasswordChange} style={{ marginTop: '2rem' }}>
+                <PasswordSection>
+                  <Label htmlFor="new_password">새 비밀번호</Label>
+                  <Input
+                    type="password"
+                    id="new_password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="새 비밀번호 (최소 4자)"
+                    required
+                    minLength={4}
+                  />
+                  <Label htmlFor="confirm_password" style={{ marginTop: '1rem' }}>비밀번호 확인</Label>
+                  <Input
+                    type="password"
+                    id="confirm_password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="새 비밀번호 다시 입력"
+                    required
+                  />
+                </PasswordSection>
+                <Actions>
+                  <Button 
+                    type="button" 
+                    className="secondary" 
+                    onClick={() => {
+                      setShowPasswordChange(false)
+                      setNewPassword('')
+                      setConfirmPassword('')
+                    }}
+                  >
+                    취소
+                  </Button>
+                  <Button type="submit" className="primary">
+                    비밀번호 변경
+                  </Button>
+                </Actions>
+              </form>
+            )}
           </>
         )}
       </ModalContainer>
