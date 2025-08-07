@@ -262,7 +262,7 @@ export default function AppForm({ app, onSubmit, onCancel }: AppFormProps) {
     tech_stack: '',
     category: '웹 프로젝트',
     development_date: '',
-    admin_password: typeof window !== 'undefined' ? (localStorage.getItem('adminPassword') || 'deokslife') : 'deokslife'
+    admin_password: ''
   })
   const [loading, setLoading] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
@@ -271,9 +271,11 @@ export default function AppForm({ app, onSubmit, onCancel }: AppFormProps) {
   const [uploadedImage, setUploadedImage] = useState<{url: string, filename: string, size: number} | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // 폼이 열릴 때마다 최신 localStorage 비밀번호로 설정
   useEffect(() => {
+    const storedPassword = getStoredPassword()
+    
     if (app) {
-      const storedPassword = getStoredPassword()
       setFormData({
         title: app.title || '',
         description: app.description || '',
@@ -283,7 +285,7 @@ export default function AppForm({ app, onSubmit, onCancel }: AppFormProps) {
         tech_stack: app.tech_stack || '',
         category: (app as any).category || '웹 프로젝트',
         development_date: (app as any).development_date || '',
-        admin_password: storedPassword // localStorage에서 저장된 비밀번호 자동 입력
+        admin_password: storedPassword // 항상 최신 저장된 비밀번호 사용
       })
       if (app.image_url) {
         setUploadedImage({
@@ -293,12 +295,18 @@ export default function AppForm({ app, onSubmit, onCancel }: AppFormProps) {
         })
       }
     } else {
-      // 새 프로젝트 추가일 때도 저장된 비밀번호 자동 입력
-      const storedPassword = getStoredPassword()
-      setFormData(prevData => ({
-        ...prevData,
+      // 새 프로젝트 추가일 때도 최신 저장된 비밀번호 사용
+      setFormData({
+        title: '',
+        description: '',
+        url: '',
+        github_url: '',
+        image_url: '',
+        tech_stack: '',
+        category: '웹 프로젝트',
+        development_date: '',
         admin_password: storedPassword
-      }))
+      })
     }
   }, [app])
 
@@ -411,31 +419,18 @@ export default function AppForm({ app, onSubmit, onCancel }: AppFormProps) {
       const method = app ? 'PUT' : 'POST'
       const url = app ? `/api/apps/${app.id}` : '/api/apps'
       
-      // localStorage 비밀번호를 먼저 시도하고, 실패하면 사용자 입력 비밀번호 시도
+      // 현재 localStorage의 비밀번호와 사용자 입력 비밀번호 확인
       const storedPassword = getStoredPassword()
-      let response: Response
       
-      // 1. localStorage 비밀번호로 먼저 시도
-      const dataWithStoredPassword = { ...formData, admin_password: storedPassword }
-      response = await fetch(url, {
+      // 사용자가 입력한 비밀번호가 있고, 저장된 것과 다르면 사용자 입력 우선
+      const passwordToUse = formData.admin_password || storedPassword
+      const finalData = { ...formData, admin_password: passwordToUse }
+      
+      const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dataWithStoredPassword)
+        body: JSON.stringify(finalData)
       })
-
-      // 2. 실패하면 사용자 입력 비밀번호로 시도
-      if (!response.ok && formData.admin_password && formData.admin_password !== storedPassword) {
-        response = await fetch(url, {
-          method,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData)
-        })
-        
-        // 사용자 입력으로 성공하면 localStorage에도 저장
-        if (response.ok) {
-          localStorage.setItem('adminPassword', formData.admin_password)
-        }
-      }
 
       if (response.ok) {
         onSubmit()
@@ -465,7 +460,7 @@ export default function AppForm({ app, onSubmit, onCancel }: AppFormProps) {
         
         <form onSubmit={handleSubmit}>
           <FormGroup>
-            <Label htmlFor="admin_password">관리자 비밀번호 *</Label>
+            <Label htmlFor="admin_password">관리자 비밀번호 * (자동 적용됨)</Label>
             <Input
               type="password"
               id="admin_password"
@@ -473,7 +468,9 @@ export default function AppForm({ app, onSubmit, onCancel }: AppFormProps) {
               value={formData.admin_password}
               onChange={handleChange}
               required
-              placeholder="관리자 비밀번호를 먼저 입력하세요"
+              placeholder="저장된 비밀번호가 자동으로 적용됩니다"
+              style={{ backgroundColor: '#f8f9fa', color: '#6c757d' }}
+              title="비밀번호 변경은 🗂️ 관리 버튼에서 가능합니다"
             />
           </FormGroup>
 
