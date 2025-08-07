@@ -9,6 +9,7 @@ import AdminPasswordModal from './components/AdminPasswordModal'
 import SettingsModal from './components/SettingsModal'
 import SkillsEditModal from './components/SkillsEditModal'
 import ProjectManageModal from './components/ProjectManageModal'
+import { getStoredPassword } from './utils/passwordUtils'
 
 const Container = styled.div`
   min-height: 100vh;
@@ -331,13 +332,29 @@ export default function HomePage() {
   const confirmDelete = async (password: string) => {
     setModalLoading(true)
     try {
-      const response = await fetch(`/api/apps/${deleteAppId}`, {
+      const storedPassword = getStoredPassword()
+      let response: Response
+      
+      // 1. localStorage 비밀번호로 먼저 시도
+      response = await fetch(`/api/apps/${deleteAppId}`, {
         method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ admin_password: password })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ admin_password: storedPassword })
       })
+
+      // 2. 실패하면 사용자 입력 비밀번호로 시도
+      if (!response.ok && password && password !== storedPassword) {
+        response = await fetch(`/api/apps/${deleteAppId}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ admin_password: password })
+        })
+        
+        // 사용자 입력으로 성공하면 localStorage에도 저장
+        if (response.ok) {
+          localStorage.setItem('adminPassword', password)
+        }
+      }
 
       if (response.ok) {
         fetchApps()
@@ -367,13 +384,14 @@ export default function HomePage() {
   }
 
   const handleBulkDelete = async (ids: number[]) => {
+    const storedPassword = getStoredPassword()
     const deletePromises = ids.map(id => 
       fetch(`/api/apps/${id}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ admin_password: 'deokslife' })
+        body: JSON.stringify({ admin_password: storedPassword })
       })
     )
 
@@ -399,17 +417,25 @@ export default function HomePage() {
   const handleSkillsSave = async (newSkills: typeof skills, adminPassword: string) => {
     setSkillsLoading(true)
     try {
-      // 관리자 비밀번호 검증
-      const expectedPassword = 'deokslife' // 또는 환경변수로 관리
-      if (adminPassword.trim() !== expectedPassword) {
+      const storedPassword = getStoredPassword()
+      
+      // 관리자 비밀번호 검증 (localStorage 우선, 그 다음 기본값)
+      if (adminPassword.trim() === storedPassword || 
+          (storedPassword !== 'deokslife' && adminPassword.trim() === 'deokslife')) {
+        
+        // 기본 비밀번호로 성공하면 localStorage에 저장
+        if (adminPassword.trim() === 'deokslife' && storedPassword !== 'deokslife') {
+          localStorage.setItem('adminPassword', adminPassword.trim())
+        }
+        
+        localStorage.setItem('portfolio_skills', JSON.stringify(newSkills))
+        setSkills(newSkills)
+        setShowSkillsEdit(false)
+        alert('스킬이 성공적으로 저장되었습니다!')
+      } else {
         alert('관리자 비밀번호가 일치하지 않습니다.')
         return
       }
-
-      localStorage.setItem('portfolio_skills', JSON.stringify(newSkills))
-      setSkills(newSkills)
-      setShowSkillsEdit(false)
-      alert('스킬이 성공적으로 저장되었습니다!')
     } catch (error) {
       console.error('스킬 저장 실패:', error)
       alert('스킬 저장에 실패했습니다.')

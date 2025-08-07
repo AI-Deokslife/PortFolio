@@ -403,13 +403,31 @@ export default function AppForm({ app, onSubmit, onCancel }: AppFormProps) {
       const method = app ? 'PUT' : 'POST'
       const url = app ? `/api/apps/${app.id}` : '/api/apps'
       
-      const response = await fetch(url, {
+      // localStorage 비밀번호를 먼저 시도하고, 실패하면 사용자 입력 비밀번호 시도
+      const storedPassword = getStoredPassword()
+      let response: Response
+      
+      // 1. localStorage 비밀번호로 먼저 시도
+      const dataWithStoredPassword = { ...formData, admin_password: storedPassword }
+      response = await fetch(url, {
         method,
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(formData)
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dataWithStoredPassword)
       })
+
+      // 2. 실패하면 사용자 입력 비밀번호로 시도
+      if (!response.ok && formData.admin_password && formData.admin_password !== storedPassword) {
+        response = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData)
+        })
+        
+        // 사용자 입력으로 성공하면 localStorage에도 저장
+        if (response.ok) {
+          localStorage.setItem('adminPassword', formData.admin_password)
+        }
+      }
 
       if (response.ok) {
         onSubmit()

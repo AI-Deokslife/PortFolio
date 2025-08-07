@@ -12,7 +12,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const { admin_password, ...appData } = body
     const resolvedParams = await params
 
-    // 관리자 비밀번호 확인
+    // 관리자 비밀번호 확인 (서버 기본값만 체크, localStorage는 클라이언트에서 처리)
     const expectedPassword = process.env.INITIAL_ADMIN_PASSWORD || 'deokslife'
     if (!admin_password || admin_password.trim() !== expectedPassword.trim()) {
       return NextResponse.json({ error: '관리자 비밀번호가 일치하지 않습니다.' }, { status: 401 })
@@ -59,7 +59,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     const { admin_password } = body
     const resolvedParams = await params
 
-    // 관리자 비밀번호 확인
+    // 관리자 비밀번호 확인 (서버 기본값만 체크, localStorage는 클라이언트에서 처리)
     const expectedPassword = process.env.INITIAL_ADMIN_PASSWORD || 'deokslife'
     
     if (!admin_password || admin_password.trim() !== expectedPassword.trim()) {
