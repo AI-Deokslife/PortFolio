@@ -81,7 +81,7 @@ export default function Header({ appCount = 0, onSettingsClick }: HeaderProps) {
     <HeaderContainer>
       <HeaderContent>
         <Brand>
-          <Title>CDG&apos;s Portfolio</Title>
+          <Title>EunDeok&apos;s Portfolio</Title>
         </Brand>
         <Stats>
           <StatItem>
