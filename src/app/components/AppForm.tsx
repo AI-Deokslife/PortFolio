@@ -394,56 +394,48 @@ export default function AppForm({ app, onSubmit, onCancel }: AppFormProps) {
     setLoading(true)
 
     try {
+      // 비밀번호가 입력되지 않은 경우 에러
+      if (!formData.admin_password.trim()) {
+        alert('관리자 비밀번호를 입력해주세요.')
+        return
+      }
+
       const method = app ? 'PUT' : 'POST'
       const url = app ? `/api/apps/${app.id}` : '/api/apps'
       
-      // 비밀번호 우선순위: 1. 사용자 입력 2. localStorage 저장값
-      const passwords = [
-        formData.admin_password.trim(),
-        getStoredPassword()
-      ].filter(p => p) // 빈 문자열 제거
+      console.log('Checking entered password')
       
-      console.log('Trying passwords count:', passwords.length)
+      // 입력된 비밀번호 검증
+      const checkResponse = await fetch('/api/password-check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: formData.admin_password.trim() })
+      })
       
-      let validPassword = ''
-      
-      // 각 비밀번호를 순서대로 검증
-      for (const password of passwords) {
-        console.log('Checking password:', password.slice(0, 2) + '***')
-        
-        const checkResponse = await fetch('/api/password-check', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password })
-        })
-        
-        if (checkResponse.ok) {
-          const result = await checkResponse.json()
-          console.log('Password check result:', result)
-          
-          if (result.valid) {
-            validPassword = password
-            // 유효한 비밀번호를 localStorage에 동기화
-            localStorage.setItem('adminPassword', password)
-            break
-          }
-        } else {
-          console.error('Password check request failed:', checkResponse.status)
-        }
+      if (!checkResponse.ok) {
+        console.error('Password check request failed:', checkResponse.status)
+        alert('비밀번호 검증 중 오류가 발생했습니다.')
+        return
       }
+
+      const result = await checkResponse.json()
+      console.log('Password check result:', result)
       
-      if (!validPassword) {
+      if (!result.valid) {
         alert('관리자 비밀번호가 일치하지 않습니다.')
         return
       }
       
-      console.log('Using valid password for app save')
+      // 유효한 비밀번호를 localStorage에 동기화
+      localStorage.setItem('adminPassword', formData.admin_password.trim())
+      
+      console.log('Password validated, saving app')
       
       // 유효한 비밀번호로 앱 저장
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...formData, admin_password: validPassword })
+        body: JSON.stringify(formData)
       })
 
       if (response.ok) {
@@ -475,15 +467,16 @@ export default function AppForm({ app, onSubmit, onCancel }: AppFormProps) {
         
         <form onSubmit={handleSubmit}>
           <FormGroup>
-            <Label htmlFor="admin_password">관리자 비밀번호 (선택사항)</Label>
+            <Label htmlFor="admin_password">관리자 비밀번호 *</Label>
             <Input
               type="password"
               id="admin_password"
               name="admin_password"
               value={formData.admin_password}
               onChange={handleChange}
-              placeholder="비어두면 저장된 비밀번호 사용 (이미지 업로드는 자동 처리)"
+              placeholder="프로젝트 저장을 위해 관리자 비밀번호를 입력하세요"
               title="비밀번호 변경은 🗂️ 관리 버튼에서 가능합니다"
+              required
             />
           </FormGroup>
 
