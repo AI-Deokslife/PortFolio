@@ -478,14 +478,14 @@ export default function AppForm({ app, onSubmit, onCancel }: AppFormProps) {
         
         <form onSubmit={handleSubmit}>
           <FormGroup>
-            <Label htmlFor="admin_password">관리자 비밀번호 *</Label>
+            <Label htmlFor="admin_password">관리자 비밀번호 (선택사항)</Label>
             <Input
               type="password"
               id="admin_password"
               name="admin_password"
               value={formData.admin_password}
               onChange={handleChange}
-              placeholder="관리자 비밀번호를 입력하세요"
+              placeholder="비어두면 저장된 비밀번호 사용 (이미지 업로드는 자동 처리)"
               title="비밀번호 변경은 🗂️ 관리 버튼에서 가능합니다"
             />
           </FormGroup>
