@@ -18,3 +18,28 @@ WHERE table_name = 'apps';
 SELECT id, title, category, development_date 
 FROM apps 
 LIMIT 5;
+
+-- 5. admin_settings 테이블 생성 (관리자 비밀번호 저장용)
+CREATE TABLE IF NOT EXISTS admin_settings (
+  id SERIAL PRIMARY KEY,
+  setting_key VARCHAR(50) UNIQUE NOT NULL,
+  setting_value TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 6. 기본 관리자 비밀번호 삽입
+INSERT INTO admin_settings (setting_key, setting_value)
+VALUES ('admin_password', 'deokslife')
+ON CONFLICT (setting_key) DO NOTHING;
+
+-- 7. RLS 정책 설정 (Row Level Security)
+ALTER TABLE admin_settings ENABLE ROW LEVEL SECURITY;
+
+-- 8. 모든 사용자가 접근 가능하도록 정책 설정
+CREATE POLICY "Allow all access to admin_settings" 
+ON admin_settings FOR ALL 
+USING (true);
+
+-- 9. admin_settings 테이블 확인
+SELECT * FROM admin_settings WHERE setting_key = 'admin_password';
