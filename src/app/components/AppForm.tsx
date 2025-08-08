@@ -399,30 +399,55 @@ export default function AppForm({ app, onSubmit, onCancel }: AppFormProps) {
     try {
       const method = app ? 'PUT' : 'POST'
       const url = app ? `/api/apps/${app.id}` : '/api/apps'
-      const storedPassword = getStoredPassword()
       
-      let response: Response
+      let finalPassword = ''
       
-      // 1. 사용자가 입력한 비밀번호로 먼저 시도
+      // 1. 사용자가 입력한 비밀번호가 있으면 서버에서 검증
       if (formData.admin_password.trim()) {
-        response = await fetch(url, {
-          method,
+        const passwordCheckResponse = await fetch('/api/password-check', {
+          method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData)
+          body: JSON.stringify({ password: formData.admin_password.trim() })
         })
         
-        if (response.ok) {
-          onSubmit()
-          return
+        if (passwordCheckResponse.ok) {
+          const result = await passwordCheckResponse.json()
+          if (result.valid) {
+            finalPassword = formData.admin_password.trim()
+            // 올바른 비밀번호를 localStorage에도 동기화
+            localStorage.setItem('adminPassword', finalPassword)
+          }
         }
       }
       
-      // 2. 사용자 입력이 없거나 실패하면 저장된 비밀번호로 시도
-      const dataWithStoredPassword = { ...formData, admin_password: storedPassword }
-      response = await fetch(url, {
+      // 2. 사용자 입력이 없거나 검증 실패 시 localStorage 비밀번호로 시도
+      if (!finalPassword) {
+        const storedPassword = getStoredPassword()
+        const passwordCheckResponse = await fetch('/api/password-check', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: storedPassword })
+        })
+        
+        if (passwordCheckResponse.ok) {
+          const result = await passwordCheckResponse.json()
+          if (result.valid) {
+            finalPassword = storedPassword
+          }
+        }
+      }
+      
+      // 3. 검증된 비밀번호로 앱 저장 요청
+      if (!finalPassword) {
+        alert('관리자 비밀번호가 일치하지 않습니다.')
+        return
+      }
+      
+      const dataWithValidPassword = { ...formData, admin_password: finalPassword }
+      const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dataWithStoredPassword)
+        body: JSON.stringify(dataWithValidPassword)
       })
 
       if (response.ok) {
