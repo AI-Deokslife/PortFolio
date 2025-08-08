@@ -313,12 +313,26 @@ export default function AppForm({ app, onSubmit, onCancel }: AppFormProps) {
     try {
       const formDataUpload = new FormData()
       formDataUpload.append('file', file)
+      
+      const storedPassword = getStoredPassword()
+      
+      // 1. 사용자가 입력한 비밀번호로 먼저 시도
+      let response: Response
+      
       formDataUpload.append('admin_password', formData.admin_password)
-
-      const response = await fetch('/api/upload', {
+      response = await fetch('/api/upload', {
         method: 'POST',
         body: formDataUpload
       })
+
+      // 2. 실패하면 저장된 비밀번호로 시도
+      if (!response.ok && formData.admin_password !== storedPassword) {
+        formDataUpload.set('admin_password', storedPassword)
+        response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formDataUpload
+        })
+      }
 
       if (response.ok) {
         const data = await response.json()
