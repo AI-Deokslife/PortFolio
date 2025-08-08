@@ -32,11 +32,13 @@ export async function POST(request: NextRequest) {
     const { password } = body
 
     const serverPassword = await getStoredPassword()
+    console.log('Password check - input:', password?.slice(0, 2) + '***', 'server:', serverPassword?.slice(0, 2) + '***')
     
     if (password?.trim() === serverPassword) {
       return NextResponse.json({ valid: true })
     } else {
-      return NextResponse.json({ valid: false }, { status: 401 })
+      // 비밀번호가 틀려도 200 OK로 응답하고, valid: false만 반환
+      return NextResponse.json({ valid: false })
     }
   } catch (error) {
     console.error('Password check error:', error)

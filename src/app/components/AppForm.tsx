@@ -400,61 +400,61 @@ export default function AppForm({ app, onSubmit, onCancel }: AppFormProps) {
       const method = app ? 'PUT' : 'POST'
       const url = app ? `/api/apps/${app.id}` : '/api/apps'
       
-      let finalPassword = ''
+      // 비밀번호 우선순위: 1. 사용자 입력 2. localStorage 저장값
+      const passwords = [
+        formData.admin_password.trim(),
+        getStoredPassword()
+      ].filter(p => p) // 빈 문자열 제거
       
-      // 1. 사용자가 입력한 비밀번호가 있으면 서버에서 검증
-      if (formData.admin_password.trim()) {
-        const passwordCheckResponse = await fetch('/api/password-check', {
+      console.log('Trying passwords count:', passwords.length)
+      
+      let validPassword = ''
+      
+      // 각 비밀번호를 순서대로 검증
+      for (const password of passwords) {
+        console.log('Checking password:', password.slice(0, 2) + '***')
+        
+        const checkResponse = await fetch('/api/password-check', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password: formData.admin_password.trim() })
+          body: JSON.stringify({ password })
         })
         
-        if (passwordCheckResponse.ok) {
-          const result = await passwordCheckResponse.json()
+        if (checkResponse.ok) {
+          const result = await checkResponse.json()
+          console.log('Password check result:', result)
+          
           if (result.valid) {
-            finalPassword = formData.admin_password.trim()
-            // 올바른 비밀번호를 localStorage에도 동기화
-            localStorage.setItem('adminPassword', finalPassword)
+            validPassword = password
+            // 유효한 비밀번호를 localStorage에 동기화
+            localStorage.setItem('adminPassword', password)
+            break
           }
+        } else {
+          console.error('Password check request failed:', checkResponse.status)
         }
       }
       
-      // 2. 사용자 입력이 없거나 검증 실패 시 localStorage 비밀번호로 시도
-      if (!finalPassword) {
-        const storedPassword = getStoredPassword()
-        const passwordCheckResponse = await fetch('/api/password-check', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password: storedPassword })
-        })
-        
-        if (passwordCheckResponse.ok) {
-          const result = await passwordCheckResponse.json()
-          if (result.valid) {
-            finalPassword = storedPassword
-          }
-        }
-      }
-      
-      // 3. 검증된 비밀번호로 앱 저장 요청
-      if (!finalPassword) {
+      if (!validPassword) {
         alert('관리자 비밀번호가 일치하지 않습니다.')
         return
       }
       
-      const dataWithValidPassword = { ...formData, admin_password: finalPassword }
+      console.log('Using valid password for app save')
+      
+      // 유효한 비밀번호로 앱 저장
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dataWithValidPassword)
+        body: JSON.stringify({ ...formData, admin_password: validPassword })
       })
 
       if (response.ok) {
+        console.log('App saved successfully')
         onSubmit()
       } else {
         const data = await response.json()
-        console.error('Submit error response:', data)
+        console.error('App save error:', data)
         alert(data.error || `저장에 실패했습니다. (${response.status})`)
       }
     } catch (error) {
