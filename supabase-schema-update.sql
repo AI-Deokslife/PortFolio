@@ -1,13 +1,23 @@
--- Supabase 데이터베이스에 새로운 컬럼 추가
+-- Supabase 데이터베이스 스키마 업데이트
 -- 이 SQL을 Supabase 대시보드의 SQL Editor에서 실행하세요.
 
--- 1. category 컬럼 추가 (기본값: '웹 프로젝트')
-ALTER TABLE apps 
-ADD COLUMN category TEXT DEFAULT '웹 프로젝트';
+-- 1. category 컬럼 추가 (이미 있으면 무시)
+DO $$ 
+BEGIN 
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'apps' AND column_name = 'category') THEN
+        ALTER TABLE apps ADD COLUMN category TEXT DEFAULT '웹 프로젝트';
+    END IF;
+END $$;
 
--- 2. development_date 컬럼 추가 (YYYY-MM 형식)
-ALTER TABLE apps 
-ADD COLUMN development_date TEXT;
+-- 2. development_date 컬럼 추가 (이미 있으면 무시)
+DO $$ 
+BEGIN 
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'apps' AND column_name = 'development_date') THEN
+        ALTER TABLE apps ADD COLUMN development_date TEXT;
+    END IF;
+END $$;
 
 -- 3. 테이블 구조 확인
 SELECT column_name, data_type, column_default 
