@@ -7,18 +7,25 @@ const supabaseUrl = 'https://dmeipyonfxlgufnanewn.supabase.co'
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRtZWlweW9uZnhsZ3VmbmFuZXduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ1NTI2NDksImV4cCI6MjA3MDEyODY0OX0.aI7PQe6PVQGJQ_M3hMMbKUpC1g_gSewTvJLI_NtIDMI'
 const supabase = createClient(supabaseUrl, supabaseKey)
 
-const PASSWORD_FILE = join(process.cwd(), '.admin-password')
-
-// 현재 저장된 비밀번호 가져오기
-const getStoredPassword = (): string => {
+// 현재 저장된 비밀번호 가져오기 (데이터베이스에서)
+const getStoredPassword = async (): Promise<string> => {
   try {
-    if (existsSync(PASSWORD_FILE)) {
-      return readFileSync(PASSWORD_FILE, 'utf8').trim()
+    const { data, error } = await supabase
+      .from('admin_settings')
+      .select('setting_value')
+      .eq('setting_key', 'admin_password')
+      .single()
+
+    if (error) {
+      console.error('Error reading password from database:', error)
+      return process.env.INITIAL_ADMIN_PASSWORD || 'deokslife'
     }
+
+    return data?.setting_value || (process.env.INITIAL_ADMIN_PASSWORD || 'deokslife')
   } catch (error) {
-    console.error('Error reading password file:', error)
+    console.error('Error reading password from database:', error)
+    return process.env.INITIAL_ADMIN_PASSWORD || 'deokslife'
   }
-  return process.env.INITIAL_ADMIN_PASSWORD || 'deokslife'
 }
 
 // 모든 앱 조회
@@ -46,7 +53,7 @@ export async function POST(request: NextRequest) {
     const { admin_password, ...appData } = body
 
     // 관리자 비밀번호 확인 (서버에 저장된 현재 비밀번호와 비교)
-    const expectedPassword = getStoredPassword()
+    const expectedPassword = await getStoredPassword()
     if (!admin_password || admin_password.trim() !== expectedPassword.trim()) {
       return NextResponse.json({ error: '관리자 비밀번호가 일치하지 않습니다.' }, { status: 401 })
     }
