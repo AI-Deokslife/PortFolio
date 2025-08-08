@@ -9,15 +9,6 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData()
     const file = formData.get('file') as File
-    const adminPassword = formData.get('admin_password') as string
-
-    // 관리자 비밀번호 확인
-    const expectedPassword = process.env.INITIAL_ADMIN_PASSWORD || 'deokslife'
-    if (!adminPassword || adminPassword.trim() !== expectedPassword.trim()) {
-      return NextResponse.json({ 
-        error: '관리자 비밀번호가 일치하지 않습니다.' 
-      }, { status: 401 })
-    }
 
     if (!file) {
       return NextResponse.json({ error: '파일이 없습니다.' }, { status: 400 })

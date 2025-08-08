@@ -308,9 +308,6 @@ export default function AppForm({ app, onSubmit, onCancel }: AppFormProps) {
     try {
       const formDataUpload = new FormData()
       formDataUpload.append('file', file)
-      
-      const storedPassword = getStoredPassword()
-      formDataUpload.append('admin_password', storedPassword)
 
       const response = await fetch('/api/upload', {
         method: 'POST',
