@@ -266,6 +266,67 @@ const EmptyState = styled.div`
   }
 `
 
+const PaginationContainer = styled.div`
+  margin-top: 3rem;
+  text-align: center;
+`
+
+const PaginationInfo = styled.div`
+  color: #6c757d;
+  font-size: 0.9rem;
+  margin-bottom: 1.5rem;
+`
+
+const Pagination = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+`
+
+const PageButton = styled.button`
+  padding: 0.6rem 1rem;
+  border: 2px solid #dee2e6;
+  background: white;
+  color: #6c757d;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+  min-width: 44px;
+
+  &:hover:not(:disabled) {
+    background: #f8f9fa;
+    border-color: #adb5bd;
+    transform: translateY(-1px);
+  }
+
+  &.active {
+    background: #dc3545;
+    color: white;
+    border-color: #dc3545;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    
+    &:hover {
+      background: white;
+      border-color: #dee2e6;
+    }
+  }
+
+  @media (max-width: 480px) {
+    padding: 0.5rem 0.8rem;
+    font-size: 0.8rem;
+    min-width: 40px;
+  }
+`
+
 interface App {
   id: number;
   title: string;
@@ -288,12 +349,15 @@ export default function HomePage() {
   const [showSkillsEdit, setShowSkillsEdit] = useState(false)
   const [skillsLoading, setSkillsLoading] = useState(false)
   const [showProjectManage, setShowProjectManage] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
   const [skills, setSkills] = useState({
     frontend: ['React', 'Vue.js', 'JavaScript', 'TypeScript', 'HTML', 'CSS'],
     backend: ['Node.js', 'Express', 'Python', 'Django'],
     database: ['MySQL', 'PostgreSQL', 'MongoDB', 'Supabase'],
     tools: ['Git', 'Docker', 'Figma', 'VS Code']
   })
+  
+  const ITEMS_PER_PAGE = 6
 
   // 앱 목록 불러오기
   const fetchApps = async () => {
@@ -461,6 +525,21 @@ export default function HomePage() {
     }
   }, [])
 
+  // 페이지네이션 관련 계산
+  const totalPages = Math.ceil(apps.length / ITEMS_PER_PAGE)
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
+  const endIndex = startIndex + ITEMS_PER_PAGE
+  const currentApps = apps.slice(startIndex, endIndex)
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page)
+    // 페이지 변경 시 프로젝트 섹션으로 스크롤
+    const projectsSection = document.getElementById('projects-section')
+    if (projectsSection) {
+      projectsSection.scrollIntoView({ behavior: 'smooth' })
+    }
+  }
+
   if (loading) {
     return (
       <Container>
@@ -564,7 +643,7 @@ export default function HomePage() {
       </SkillsSection>
       
       {/* Projects Section */}
-      <ProjectsSection>
+      <ProjectsSection id="projects-section">
         <Main>
           <SectionTitle>PROJECTS</SectionTitle>
           {apps.length === 0 ? (
@@ -573,16 +652,51 @@ export default function HomePage() {
               <p>+ 버튼을 클릭해서 첫 번째 웹앱을 추가해보세요!</p>
             </EmptyState>
           ) : (
-            <AppsGrid>
-              {apps.map((app) => (
-                <AppCard
-                  key={app.id}
-                  app={app}
-                  onEdit={handleEditApp}
-                  onDelete={handleDeleteApp}
-                />
-              ))}
-            </AppsGrid>
+            <>
+              <AppsGrid>
+                {currentApps.map((app) => (
+                  <AppCard
+                    key={app.id}
+                    app={app}
+                    onEdit={handleEditApp}
+                    onDelete={handleDeleteApp}
+                  />
+                ))}
+              </AppsGrid>
+              
+              {totalPages > 1 && (
+                <PaginationContainer>
+                  <PaginationInfo>
+                    {apps.length}개 프로젝트 중 {startIndex + 1}-{Math.min(endIndex, apps.length)}번째
+                  </PaginationInfo>
+                  <Pagination>
+                    <PageButton
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                    >
+                      ‹ 이전
+                    </PageButton>
+                    
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                      <PageButton
+                        key={page}
+                        onClick={() => handlePageChange(page)}
+                        className={currentPage === page ? 'active' : ''}
+                      >
+                        {page}
+                      </PageButton>
+                    ))}
+                    
+                    <PageButton
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                    >
+                      다음 ›
+                    </PageButton>
+                  </Pagination>
+                </PaginationContainer>
+              )}
+            </>
           )}
         </Main>
       </ProjectsSection>
