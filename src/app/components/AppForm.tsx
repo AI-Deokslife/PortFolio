@@ -302,11 +302,6 @@ export default function AppForm({ app, onSubmit, onCancel }: AppFormProps) {
   }
 
   const handleImageUpload = async (file: File) => {
-    if (!formData.admin_password.trim()) {
-      alert('이미지 업로드를 위해 관리자 비밀번호를 먼저 입력해주세요.')
-      return
-    }
-
     setIsUploading(true)
     setUploadProgress(0)
 
@@ -315,24 +310,12 @@ export default function AppForm({ app, onSubmit, onCancel }: AppFormProps) {
       formDataUpload.append('file', file)
       
       const storedPassword = getStoredPassword()
-      
-      // 1. 사용자가 입력한 비밀번호로 먼저 시도
-      let response: Response
-      
-      formDataUpload.append('admin_password', formData.admin_password)
-      response = await fetch('/api/upload', {
+      formDataUpload.append('admin_password', storedPassword)
+
+      const response = await fetch('/api/upload', {
         method: 'POST',
         body: formDataUpload
       })
-
-      // 2. 실패하면 저장된 비밀번호로 시도
-      if (!response.ok && formData.admin_password !== storedPassword) {
-        formDataUpload.set('admin_password', storedPassword)
-        response = await fetch('/api/upload', {
-          method: 'POST',
-          body: formDataUpload
-        })
-      }
 
       if (response.ok) {
         const data = await response.json()
