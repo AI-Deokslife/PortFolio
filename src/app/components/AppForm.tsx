@@ -271,10 +271,7 @@ export default function AppForm({ app, onSubmit, onCancel }: AppFormProps) {
   const [uploadedImage, setUploadedImage] = useState<{url: string, filename: string, size: number} | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // 폼이 열릴 때마다 최신 localStorage 비밀번호로 설정
   useEffect(() => {
-    const storedPassword = getStoredPassword()
-    
     if (app) {
       setFormData({
         title: app.title || '',
@@ -285,7 +282,7 @@ export default function AppForm({ app, onSubmit, onCancel }: AppFormProps) {
         tech_stack: app.tech_stack || '',
         category: (app as any).category || '웹 프로젝트',
         development_date: (app as any).development_date || '',
-        admin_password: storedPassword // 항상 최신 저장된 비밀번호 사용
+        admin_password: '' // 사용자가 직접 입력하도록
       })
       if (app.image_url) {
         setUploadedImage({
@@ -294,19 +291,6 @@ export default function AppForm({ app, onSubmit, onCancel }: AppFormProps) {
           size: 0
         })
       }
-    } else {
-      // 새 프로젝트 추가일 때도 최신 저장된 비밀번호 사용
-      setFormData({
-        title: '',
-        description: '',
-        url: '',
-        github_url: '',
-        image_url: '',
-        tech_stack: '',
-        category: '웹 프로젝트',
-        development_date: '',
-        admin_password: storedPassword
-      })
     }
   }, [app])
 
@@ -418,18 +402,30 @@ export default function AppForm({ app, onSubmit, onCancel }: AppFormProps) {
     try {
       const method = app ? 'PUT' : 'POST'
       const url = app ? `/api/apps/${app.id}` : '/api/apps'
-      
-      // 현재 localStorage의 비밀번호와 사용자 입력 비밀번호 확인
       const storedPassword = getStoredPassword()
       
-      // 사용자가 입력한 비밀번호가 있고, 저장된 것과 다르면 사용자 입력 우선
-      const passwordToUse = formData.admin_password || storedPassword
-      const finalData = { ...formData, admin_password: passwordToUse }
+      let response: Response
       
-      const response = await fetch(url, {
+      // 1. 사용자가 입력한 비밀번호로 먼저 시도
+      if (formData.admin_password.trim()) {
+        response = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData)
+        })
+        
+        if (response.ok) {
+          onSubmit()
+          return
+        }
+      }
+      
+      // 2. 사용자 입력이 없거나 실패하면 저장된 비밀번호로 시도
+      const dataWithStoredPassword = { ...formData, admin_password: storedPassword }
+      response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(finalData)
+        body: JSON.stringify(dataWithStoredPassword)
       })
 
       if (response.ok) {
@@ -460,16 +456,14 @@ export default function AppForm({ app, onSubmit, onCancel }: AppFormProps) {
         
         <form onSubmit={handleSubmit}>
           <FormGroup>
-            <Label htmlFor="admin_password">관리자 비밀번호 * (자동 적용됨)</Label>
+            <Label htmlFor="admin_password">관리자 비밀번호 *</Label>
             <Input
               type="password"
               id="admin_password"
               name="admin_password"
               value={formData.admin_password}
               onChange={handleChange}
-              required
-              placeholder="저장된 비밀번호가 자동으로 적용됩니다"
-              style={{ backgroundColor: '#f8f9fa', color: '#6c757d' }}
+              placeholder="관리자 비밀번호를 입력하세요"
               title="비밀번호 변경은 🗂️ 관리 버튼에서 가능합니다"
             />
           </FormGroup>
