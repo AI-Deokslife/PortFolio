@@ -67,8 +67,16 @@ interface SettingsModalProps {
 }
 
 export default function SettingsModal({ appCount, onClose }: SettingsModalProps) {
+  const handleOverlayClick = (e: React.MouseEvent) => {
+    // 드래그 중이거나 텍스트 선택이 있으면 모달을 닫지 않음
+    const selection = window.getSelection()
+    if (e.target === e.currentTarget && (!selection || !selection.toString())) {
+      onClose()
+    }
+  }
+
   return (
-    <Overlay onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <Overlay onClick={handleOverlayClick}>
       <Modal>
         <Title>⚙️ 설정</Title>
         
