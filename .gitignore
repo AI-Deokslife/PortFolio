@@ -38,3 +38,6 @@ yarn-error.log*
 
 # OS
 Thumbs.db
+
+# Admin password file (contains sensitive data)
+.admin-password

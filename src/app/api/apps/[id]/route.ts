@@ -1,9 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { readFileSync, existsSync } from 'fs'
+import { join } from 'path'
 
 const supabaseUrl = 'https://dmeipyonfxlgufnanewn.supabase.co'
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRtZWlweW9uZnhsZ3VmbmFuZXduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ1NTI2NDksImV4cCI6MjA3MDEyODY0OX0.aI7PQe6PVQGJQ_M3hMMbKUpC1g_gSewTvJLI_NtIDMI'
 const supabase = createClient(supabaseUrl, supabaseKey)
+
+const PASSWORD_FILE = join(process.cwd(), '.admin-password')
+
+// 현재 저장된 비밀번호 가져오기
+const getStoredPassword = (): string => {
+  try {
+    if (existsSync(PASSWORD_FILE)) {
+      return readFileSync(PASSWORD_FILE, 'utf8').trim()
+    }
+  } catch (error) {
+    console.error('Error reading password file:', error)
+  }
+  return process.env.INITIAL_ADMIN_PASSWORD || 'deokslife'
+}
 
 // 앱 수정
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -12,8 +28,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const { admin_password, ...appData } = body
     const resolvedParams = await params
 
-    // 관리자 비밀번호 확인 (서버 기본값만 체크, localStorage는 클라이언트에서 처리)
-    const expectedPassword = process.env.INITIAL_ADMIN_PASSWORD || 'deokslife'
+    // 관리자 비밀번호 확인 (서버에 저장된 현재 비밀번호와 비교)
+    const expectedPassword = getStoredPassword()
     if (!admin_password || admin_password.trim() !== expectedPassword.trim()) {
       return NextResponse.json({ error: '관리자 비밀번호가 일치하지 않습니다.' }, { status: 401 })
     }
@@ -59,8 +75,8 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     const { admin_password } = body
     const resolvedParams = await params
 
-    // 관리자 비밀번호 확인 (서버 기본값만 체크, localStorage는 클라이언트에서 처리)
-    const expectedPassword = process.env.INITIAL_ADMIN_PASSWORD || 'deokslife'
+    // 관리자 비밀번호 확인 (서버에 저장된 현재 비밀번호와 비교)
+    const expectedPassword = getStoredPassword()
     
     if (!admin_password || admin_password.trim() !== expectedPassword.trim()) {
       return NextResponse.json({ 

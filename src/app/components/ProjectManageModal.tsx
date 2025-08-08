@@ -283,7 +283,7 @@ export default function ProjectManageModal({ apps, onClose, onDelete }: ProjectM
     }
   }
 
-  const handlePasswordChange = (e: React.FormEvent) => {
+  const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault()
     
     if (newPassword.length < 4) {
@@ -296,14 +296,37 @@ export default function ProjectManageModal({ apps, onClose, onDelete }: ProjectM
       return
     }
 
-    // localStorage에 새 비밀번호 저장
-    localStorage.setItem('adminPassword', newPassword)
-    setCurrentStoredPassword(newPassword)
-    
-    alert('비밀번호가 성공적으로 변경되었습니다.')
-    setShowPasswordChange(false)
-    setNewPassword('')
-    setConfirmPassword('')
+    setLoading(true)
+    try {
+      // 서버에 비밀번호 변경 요청
+      const response = await fetch('/api/admin-password', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          currentPassword: currentStoredPassword, 
+          newPassword: newPassword 
+        })
+      })
+
+      if (response.ok) {
+        // 성공하면 localStorage에도 새 비밀번호 저장
+        localStorage.setItem('adminPassword', newPassword)
+        setCurrentStoredPassword(newPassword)
+        
+        alert('비밀번호가 성공적으로 변경되었습니다.')
+        setShowPasswordChange(false)
+        setNewPassword('')
+        setConfirmPassword('')
+      } else {
+        const errorData = await response.json()
+        alert(errorData.error || '비밀번호 변경에 실패했습니다.')
+      }
+    } catch (error) {
+      console.error('비밀번호 변경 오류:', error)
+      alert('비밀번호 변경 중 오류가 발생했습니다.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleSelectAll = (checked: boolean) => {
