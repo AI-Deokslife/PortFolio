@@ -185,6 +185,9 @@ interface App {
   tech_stack?: string;
   category?: string;
   development_date?: string;
+  download_url?: string;
+  download_filename?: string;
+  download_filesize?: number;
 }
 
 interface AppCardProps {
@@ -237,6 +240,12 @@ export default function AppCard({ app, onEdit, onDelete }: AppCardProps) {
             <LinkItem href={app.github_url} target="_blank" rel="noopener noreferrer">
               <span className="link-icon">⚡</span>
               GitHub 저장소
+            </LinkItem>
+          )}
+          {app.download_url && (
+            <LinkItem href={app.download_url} download={app.download_filename}>
+              <span className="link-icon">📥</span>
+              프로그램 다운로드 ({app.download_filename})
             </LinkItem>
           )}
         </LinksSection>

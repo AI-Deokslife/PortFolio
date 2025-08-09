@@ -52,7 +52,10 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       updated_at: new Date().toISOString(),
       // 조건부로 새 필드 포함 (DB 스키마가 업데이트되면 자동 작동)
       ...(appData.category && { category: appData.category }),
-      ...(appData.development_date && { development_date: appData.development_date })
+      ...(appData.development_date && { development_date: appData.development_date }),
+      ...(appData.download_url && { download_url: appData.download_url }),
+      ...(appData.download_filename && { download_filename: appData.download_filename }),
+      ...(appData.download_filesize && { download_filesize: appData.download_filesize })
     }
 
     const { data, error } = await supabase

@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react'
 import styled from 'styled-components'
 import { getStoredPassword } from '../utils/passwordUtils'
+import FileUpload from './FileUpload'
 
 const Overlay = styled.div`
   position: fixed;
@@ -244,6 +245,17 @@ interface App {
   tech_stack?: string;
   category?: string;
   development_date?: string;
+  download_url?: string;
+  download_filename?: string;
+  download_filesize?: number;
+}
+
+interface UploadedFile {
+  url: string;
+  fileName: string;
+  originalName: string;
+  fileSize: number;
+  fileType: string;
 }
 
 interface AppFormProps {
@@ -262,6 +274,9 @@ export default function AppForm({ app, onSubmit, onCancel }: AppFormProps) {
     tech_stack: '',
     category: '웹 프로젝트',
     development_date: '',
+    download_url: '',
+    download_filename: '',
+    download_filesize: 0,
     admin_password: ''
   })
   const [loading, setLoading] = useState(false)
@@ -269,6 +284,7 @@ export default function AppForm({ app, onSubmit, onCancel }: AppFormProps) {
   const [uploadProgress, setUploadProgress] = useState(0)
   const [isUploading, setIsUploading] = useState(false)
   const [uploadedImage, setUploadedImage] = useState<{url: string, filename: string, size: number} | null>(null)
+  const [uploadedFile, setUploadedFile] = useState<UploadedFile | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -282,6 +298,9 @@ export default function AppForm({ app, onSubmit, onCancel }: AppFormProps) {
         tech_stack: app.tech_stack || '',
         category: (app as any).category || '웹 프로젝트',
         development_date: (app as any).development_date || '',
+        download_url: (app as any).download_url || '',
+        download_filename: (app as any).download_filename || '',
+        download_filesize: (app as any).download_filesize || 0,
         admin_password: '' // 사용자가 직접 입력하도록
       })
       if (app.image_url) {
@@ -289,6 +308,15 @@ export default function AppForm({ app, onSubmit, onCancel }: AppFormProps) {
           url: app.image_url,
           filename: 'existing-image.jpg',
           size: 0
+        })
+      }
+      if ((app as any).download_url) {
+        setUploadedFile({
+          url: (app as any).download_url,
+          fileName: (app as any).download_filename || 'existing-file',
+          originalName: (app as any).download_filename || 'existing-file',
+          fileSize: (app as any).download_filesize || 0,
+          fileType: 'application/octet-stream'
         })
       }
     }
@@ -378,6 +406,26 @@ export default function AppForm({ app, onSubmit, onCancel }: AppFormProps) {
     setFormData({
       ...formData,
       image_url: ''
+    })
+  }
+
+  const handleFileUploaded = (file: UploadedFile) => {
+    setUploadedFile(file)
+    setFormData({
+      ...formData,
+      download_url: file.url,
+      download_filename: file.originalName,
+      download_filesize: file.fileSize
+    })
+  }
+
+  const handleFileRemoved = () => {
+    setUploadedFile(null)
+    setFormData({
+      ...formData,
+      download_url: '',
+      download_filename: '',
+      download_filesize: 0
     })
   }
 
@@ -617,6 +665,15 @@ export default function AppForm({ app, onSubmit, onCancel }: AppFormProps) {
               onChange={handleChange}
               placeholder="또는 직접 이미지 URL을 입력하세요"
               style={{ marginTop: '1rem' }}
+            />
+          </FormGroup>
+
+          <FormGroup>
+            <Label htmlFor="program_file">프로그램 다운로드 파일</Label>
+            <FileUpload
+              onFileUploaded={handleFileUploaded}
+              currentFile={uploadedFile}
+              onFileRemoved={handleFileRemoved}
             />
           </FormGroup>
 
