@@ -4,7 +4,7 @@ import type { NextConfig } from "next";
    // 파일 업로드 용량 제한을 50MB로 늘립니다.
    api: {
      bodyParser: {
-       sizeLimit: "50mb",
+       sizeLimit: "10mb",
      },
    },
 
