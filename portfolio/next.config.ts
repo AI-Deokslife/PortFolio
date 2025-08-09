@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {
+const config: NextConfig = {
    api: {
     bodyParser: {
       sizeLimit: '50mb', // 원하는 크기로 설정 (예: 10MB)
@@ -8,4 +8,4 @@ const nextConfig: NextConfig = {
    },
 };
 
-export default nextConfig;
+export default config;
