@@ -268,7 +268,7 @@ export default function FileUpload({ onFileUploaded, currentFile, onFileRemoved 
         >
           <span className="upload-icon">📁</span>
           <div className="upload-text">파일을 드래그하거나 클릭해서 업로드</div>
-          <div className="upload-hint">엑셀, 워드, PPT, 실행파일, 압축파일, 이미지, 개발파일 등 (최대 50MB)</div>
+          <div className="upload-hint">엑셀, 워드, PPT, 실행파일, 압축파일, 이미지, 개발파일 등 (최대 100MB)</div>
         </FileUploadArea>
       )}
       

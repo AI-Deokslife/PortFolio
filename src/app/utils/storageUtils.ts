@@ -32,19 +32,23 @@ export function extractStoragePathFromUrl(url: string, bucketName: string): stri
 export async function deleteStorageFile(bucketName: string, filePath: string): Promise<{ success: boolean, error?: string }> {
   try {
     if (!filePath) {
+      console.log('deleteStorageFile: No file path provided')
       return { success: false, error: 'File path is required' }
     }
 
-    const { error } = await supabase.storage
+    console.log(`Attempting to delete file from ${bucketName}:`, filePath)
+
+    const { data, error } = await supabase.storage
       .from(bucketName)
       .remove([filePath])
 
     if (error) {
       console.error(`Storage delete error for ${filePath}:`, error)
+      console.error('Delete error details:', JSON.stringify(error, null, 2))
       return { success: false, error: error.message }
     }
 
-    console.log(`Successfully deleted storage file: ${filePath}`)
+    console.log(`Successfully deleted storage file: ${filePath}`, data)
     return { success: true }
   } catch (error: any) {
     console.error(`Unexpected error deleting storage file ${filePath}:`, error)
@@ -57,19 +61,27 @@ export async function deleteStorageFile(bucketName: string, filePath: string): P
  */
 export async function deleteStorageFileByUrl(url: string, bucketName: string): Promise<{ success: boolean, error?: string }> {
   try {
+    console.log(`deleteStorageFileByUrl called with:`, { url, bucketName })
+    
     if (!url || url.startsWith('data:')) {
-      // Base64 데이터 URL은 Storage에 저장되지 않으므로 삭제할 필요 없음
+      console.log('URL is empty or data URL, skipping deletion')
       return { success: true }
     }
 
     const filePath = extractStoragePathFromUrl(url, bucketName)
+    console.log(`Extracted file path:`, filePath)
     
     if (!filePath) {
       console.log(`No storage path found in URL: ${url}`)
+      console.log('This might be a URL from a different storage or external URL')
       return { success: true } // 삭제할 파일이 없는 것은 성공으로 처리
     }
 
-    return await deleteStorageFile(bucketName, filePath)
+    console.log(`Calling deleteStorageFile with:`, { bucketName, filePath })
+    const result = await deleteStorageFile(bucketName, filePath)
+    console.log(`deleteStorageFile result:`, result)
+    
+    return result
   } catch (error: any) {
     console.error('Error deleting storage file by URL:', error)
     return { success: false, error: error.message }

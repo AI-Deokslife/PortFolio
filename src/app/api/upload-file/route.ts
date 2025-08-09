@@ -20,7 +20,7 @@ async function ensureStorageSetup() {
       const { error: createError } = await supabase.storage.createBucket('project-files', {
         public: true,
         allowedMimeTypes: ['*/*'],
-        fileSizeLimit: 52428800 // 50MB
+        fileSizeLimit: 104857600 // 100MB
       })
       
       if (createError) {
@@ -123,11 +123,11 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // 파일 크기 체크 (50MB)
-    const maxSize = 50 * 1024 * 1024
+    // 파일 크기 체크 (100MB)
+    const maxSize = 100 * 1024 * 1024
     if (file.size > maxSize) {
       return NextResponse.json({ 
-        error: '파일 크기는 50MB를 초과할 수 없습니다.' 
+        error: '파일 크기는 100MB를 초과할 수 없습니다.' 
       }, { status: 400 })
     }
 
@@ -166,7 +166,7 @@ export async function POST(request: NextRequest) {
       if (error.message.includes('Invalid key')) {
         errorMessage = '파일명에 사용할 수 없는 문자가 포함되어 있습니다.'
       } else if (error.message.includes('Payload too large')) {
-        errorMessage = '파일 크기가 너무 큽니다. 50MB 이하의 파일을 업로드해주세요.'
+        errorMessage = '파일 크기가 너무 큽니다. 100MB 이하의 파일을 업로드해주세요.'
       } else if (error.message.includes('bucket')) {
         errorMessage = 'Storage 버킷 설정에 문제가 있습니다. 관리자에게 문의해주세요.'
       } else if (error.message.includes('policy') || error.message.includes('permission')) {
