@@ -16,33 +16,41 @@ INSERT INTO storage.buckets (id, name, public, allowed_mime_types, file_size_lim
 VALUES ('project-files', 'project-files', true, null, 52428800)
 ON CONFLICT (id) DO NOTHING;
 
--- 기존 정책들 삭제 (있다면)
+-- 모든 기존 정책들 삭제 (여러 가지 이름으로 존재할 수 있음)
 DROP POLICY IF EXISTS "Allow public read access on project-files" ON storage.objects;
 DROP POLICY IF EXISTS "Allow upload access on project-files" ON storage.objects;
 DROP POLICY IF EXISTS "Allow update access on project-files" ON storage.objects;
 DROP POLICY IF EXISTS "Allow delete access on project-files" ON storage.objects;
+DROP POLICY IF EXISTS "Public read access for project-files" ON storage.objects;
+DROP POLICY IF EXISTS "Public insert access for project-files" ON storage.objects;
+DROP POLICY IF EXISTS "Public update access for project-files" ON storage.objects;
+DROP POLICY IF EXISTS "Public delete access for project-files" ON storage.objects;
+DROP POLICY IF EXISTS "Enable insert for all users" ON storage.objects;
+DROP POLICY IF EXISTS "Enable read for all users" ON storage.objects;
+DROP POLICY IF EXISTS "Enable update for all users" ON storage.objects;
+DROP POLICY IF EXISTS "Enable delete for all users" ON storage.objects;
 
--- project-files 버킷에 대한 새로운 정책 설정
--- 1. 모든 사용자가 파일을 읽을 수 있도록 허용 (다운로드)
-CREATE POLICY "Public read access for project-files"
+-- project-files 버킷 전용 정책 생성
+-- 1. project-files 버킷의 파일 읽기 허용 (다운로드)
+CREATE POLICY "project_files_select_policy"
 ON storage.objects
 FOR SELECT
 USING (bucket_id = 'project-files');
 
--- 2. 모든 사용자가 파일을 업로드할 수 있도록 허용 (앱에서 관리자 인증 처리)
-CREATE POLICY "Public insert access for project-files"
+-- 2. project-files 버킷에 파일 업로드 허용
+CREATE POLICY "project_files_insert_policy"
 ON storage.objects
 FOR INSERT
 WITH CHECK (bucket_id = 'project-files');
 
--- 3. 파일 업데이트 허용
-CREATE POLICY "Public update access for project-files"
+-- 3. project-files 버킷의 파일 업데이트 허용
+CREATE POLICY "project_files_update_policy"
 ON storage.objects
 FOR UPDATE
 USING (bucket_id = 'project-files');
 
--- 4. 파일 삭제 허용
-CREATE POLICY "Public delete access for project-files"
+-- 4. project-files 버킷의 파일 삭제 허용
+CREATE POLICY "project_files_delete_policy"
 ON storage.objects
 FOR DELETE
 USING (bucket_id = 'project-files');

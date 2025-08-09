@@ -26,7 +26,8 @@ export async function POST(request: NextRequest) {
           })
           
           if (createError) {
-            results.push({ step: 'create-bucket', success: false, error: createError.message })
+            // 버킷 생성 실패해도 계속 진행 (이미 존재할 수 있음)
+            results.push({ step: 'create-bucket', success: false, error: createError.message, warning: 'Bucket may already exist' })
           } else {
             results.push({ step: 'create-bucket', success: true, data: createData })
           }
@@ -35,7 +36,7 @@ export async function POST(request: NextRequest) {
         }
       }
     } catch (error: any) {
-      results.push({ step: 'bucket-setup', success: false, error: error.message })
+      results.push({ step: 'bucket-setup', success: false, error: error.message, warning: 'Continuing with tests' })
     }
 
     // 2. 테스트 파일 업로드로 권한 확인
