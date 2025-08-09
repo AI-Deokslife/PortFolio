@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import styled from 'styled-components'
 import { getStoredPassword } from '../utils/passwordUtils'
 import FileUpload from './FileUpload'
+import { deleteStorageFileByUrl } from '../utils/storageUtils'
 
 const Overlay = styled.div`
   position: fixed;
@@ -334,6 +335,15 @@ export default function AppForm({ app, onSubmit, onCancel }: AppFormProps) {
     setUploadProgress(0)
 
     try {
+      // 기존 이미지가 있다면 Storage에서 삭제
+      if (uploadedImage?.url && !uploadedImage.url.startsWith('data:')) {
+        try {
+          await deleteStorageFileByUrl(uploadedImage.url, 'project-images')
+        } catch (error) {
+          console.error('Error deleting old image:', error)
+        }
+      }
+
       const formDataUpload = new FormData()
       formDataUpload.append('file', file)
 
@@ -401,7 +411,16 @@ export default function AppForm({ app, onSubmit, onCancel }: AppFormProps) {
     fileInputRef.current?.click()
   }
 
-  const removeUploadedImage = () => {
+  const removeUploadedImage = async () => {
+    // Storage에서 이미지 삭제
+    if (uploadedImage?.url && !uploadedImage.url.startsWith('data:')) {
+      try {
+        await deleteStorageFileByUrl(uploadedImage.url, 'project-images')
+      } catch (error) {
+        console.error('Error deleting image:', error)
+      }
+    }
+
     setUploadedImage(null)
     setFormData({
       ...formData,
@@ -409,7 +428,16 @@ export default function AppForm({ app, onSubmit, onCancel }: AppFormProps) {
     })
   }
 
-  const handleFileUploaded = (file: UploadedFile) => {
+  const handleFileUploaded = async (file: UploadedFile) => {
+    // 기존 파일이 있다면 Storage에서 삭제
+    if (uploadedFile?.url && !uploadedFile.url.startsWith('data:')) {
+      try {
+        await deleteStorageFileByUrl(uploadedFile.url, 'project-files')
+      } catch (error) {
+        console.error('Error deleting old file:', error)
+      }
+    }
+
     setUploadedFile(file)
     setFormData({
       ...formData,
@@ -419,7 +447,16 @@ export default function AppForm({ app, onSubmit, onCancel }: AppFormProps) {
     })
   }
 
-  const handleFileRemoved = () => {
+  const handleFileRemoved = async () => {
+    // Storage에서 파일 삭제
+    if (uploadedFile?.url && !uploadedFile.url.startsWith('data:')) {
+      try {
+        await deleteStorageFileByUrl(uploadedFile.url, 'project-files')
+      } catch (error) {
+        console.error('Error deleting file:', error)
+      }
+    }
+
     setUploadedFile(null)
     setFormData({
       ...formData,
