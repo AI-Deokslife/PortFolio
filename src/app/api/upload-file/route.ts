@@ -5,6 +5,38 @@ const supabaseUrl = 'https://dmeipyonfxlgufnanewn.supabase.co'
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRtZWlweW9uZnhsZ3VmbmFuZXduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ1NTI2NDksImV4cCI6MjA3MDEyODY0OX0.aI7PQe6PVQGJQ_M3hMMbKUpC1g_gSewTvJLI_NtIDMI'
 const supabase = createClient(supabaseUrl, supabaseKey)
 
+// Storage 설정 확인 및 초기화
+async function ensureStorageSetup() {
+  try {
+    const { data: buckets, error: listError } = await supabase.storage.listBuckets()
+    
+    if (listError) {
+      throw new Error(`Storage 서비스 연결 실패: ${listError.message}`)
+    }
+
+    const bucketExists = buckets?.some(bucket => bucket.name === 'project-files')
+    
+    if (!bucketExists) {
+      const { error: createError } = await supabase.storage.createBucket('project-files', {
+        public: true,
+        allowedMimeTypes: ['*/*'],
+        fileSizeLimit: 52428800 // 50MB
+      })
+      
+      if (createError) {
+        throw new Error(`Storage 버킷 생성 실패: ${createError.message}`)
+      }
+      
+      console.log('project-files bucket created successfully')
+    }
+    
+    return { success: true }
+  } catch (error: any) {
+    console.error('Storage setup error:', error)
+    return { success: false, error: error.message }
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData()
@@ -108,20 +140,12 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await file.arrayBuffer()
     const buffer = new Uint8Array(arrayBuffer)
 
-    // 버킷 확인 및 생성
-    try {
-      const { data: buckets } = await supabase.storage.listBuckets()
-      const bucketExists = buckets?.some(bucket => bucket.name === 'project-files')
-      
-      if (!bucketExists) {
-        console.log('Creating project-files bucket...')
-        await supabase.storage.createBucket('project-files', {
-          public: true,
-          allowedMimeTypes: ['*/*']
-        })
-      }
-    } catch (bucketError) {
-      console.log('Bucket operation failed, continuing with upload:', bucketError)
+    // Storage 설정 확인
+    const setupResult = await ensureStorageSetup()
+    if (!setupResult.success) {
+      return NextResponse.json({ 
+        error: setupResult.error
+      }, { status: 500 })
     }
 
     // Supabase Storage에 업로드
@@ -136,9 +160,23 @@ export async function POST(request: NextRequest) {
       console.error('Supabase upload error:', error)
       console.error('Error details:', JSON.stringify(error, null, 2))
       
-      // Base64 fallback은 실행파일에는 적합하지 않으므로 에러 반환
+      // 구체적인 에러 메시지 제공
+      let errorMessage = '파일 업로드에 실패했습니다.'
+      
+      if (error.message.includes('Invalid key')) {
+        errorMessage = '파일명에 사용할 수 없는 문자가 포함되어 있습니다.'
+      } else if (error.message.includes('Payload too large')) {
+        errorMessage = '파일 크기가 너무 큽니다. 50MB 이하의 파일을 업로드해주세요.'
+      } else if (error.message.includes('bucket')) {
+        errorMessage = 'Storage 버킷 설정에 문제가 있습니다. 관리자에게 문의해주세요.'
+      } else if (error.message.includes('policy') || error.message.includes('permission')) {
+        errorMessage = 'Storage 권한 설정에 문제가 있습니다. Storage 정책을 확인해주세요.'
+      }
+      
       return NextResponse.json({ 
-        error: 'Supabase Storage 업로드에 실패했습니다. 저장소 정책을 확인해주세요.' 
+        error: errorMessage,
+        details: error.message,
+        code: error.statusCode || 'UPLOAD_FAILED'
       }, { status: 500 })
     }
 

@@ -153,11 +153,22 @@ export default function FileUpload({ onFileUploaded, currentFile, onFileRemoved 
         setUploadProgress(100)
       } else {
         const errorData = await response.json()
-        alert(errorData.error || '파일 업로드에 실패했습니다.')
+        
+        // 더 상세한 에러 메시지 표시
+        let errorMessage = errorData.error || '파일 업로드에 실패했습니다.'
+        if (errorData.details) {
+          errorMessage += `\n\n상세 정보: ${errorData.details}`
+        }
+        if (errorData.code) {
+          errorMessage += `\n오류 코드: ${errorData.code}`
+        }
+        
+        alert(errorMessage)
+        console.error('Upload error details:', errorData)
       }
     } catch (error) {
       console.error('파일 업로드 오류:', error)
-      alert('파일 업로드 중 오류가 발생했습니다.')
+      alert(`파일 업로드 중 네트워크 오류가 발생했습니다.\n\n${error instanceof Error ? error.message : '알 수 없는 오류'}`)
     } finally {
       setIsUploading(false)
     }
