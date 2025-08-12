@@ -176,7 +176,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ 
         error: errorMessage,
         details: error.message,
-        code: error.statusCode || 'UPLOAD_FAILED'
+        code: 'UPLOAD_FAILED'
       }, { status: 500 })
     }
 
