@@ -1,6 +1,7 @@
 'use client'
 import styled from 'styled-components'
 import { useEffect } from 'react'
+import { createPortal } from 'react-dom'
 
 const ModalOverlay = styled.div`
   position: fixed;
@@ -109,7 +110,7 @@ export default function ImageModal({ src, alt, onClose }: ImageModalProps) {
     }
   }
 
-  return (
+  const modalContent = (
     <ModalOverlay onClick={handleOverlayClick}>
       <CloseButton onClick={onClose}>×</CloseButton>
       <ModalImage 
@@ -119,4 +120,11 @@ export default function ImageModal({ src, alt, onClose }: ImageModalProps) {
       />
     </ModalOverlay>
   )
+
+  // Portal을 사용하여 document.body에 직접 렌더링
+  if (typeof window !== 'undefined') {
+    return createPortal(modalContent, document.body)
+  }
+  
+  return null
 }
