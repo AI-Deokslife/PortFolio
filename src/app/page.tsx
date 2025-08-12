@@ -8,6 +8,8 @@ import AppForm from './components/AppForm'
 import AdminPasswordModal from './components/AdminPasswordModal'
 import SettingsModal from './components/SettingsModal'
 import SkillsEditModal from './components/SkillsEditModal'
+import ProjectManageModal from './components/ProjectManageModal'
+import { getStoredPassword } from './utils/passwordUtils'
 
 const Container = styled.div`
   min-height: 100vh;
@@ -216,6 +218,32 @@ const AddButton = styled.button`
   }
 `
 
+const ManageButton = styled.button`
+  position: fixed;
+  bottom: 2rem;
+  right: 5rem;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #6c757d;
+  border: none;
+  color: white;
+  font-size: 1.2rem;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(108, 117, 125, 0.3);
+  transition: all 0.3s ease;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    background: #5a6268;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(108, 117, 125, 0.4);
+  }
+`
+
 const EmptyState = styled.div`
   text-align: center;
   padding: 6rem 2rem;
@@ -235,6 +263,67 @@ const EmptyState = styled.div`
     font-size: 1.1rem;
     max-width: 400px;
     margin: 0 auto;
+  }
+`
+
+const PaginationContainer = styled.div`
+  margin-top: 3rem;
+  text-align: center;
+`
+
+const PaginationInfo = styled.div`
+  color: #6c757d;
+  font-size: 0.9rem;
+  margin-bottom: 1.5rem;
+`
+
+const Pagination = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+`
+
+const PageButton = styled.button`
+  padding: 0.6rem 1rem;
+  border: 2px solid #dee2e6;
+  background: white;
+  color: #6c757d;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+  min-width: 44px;
+
+  &:hover:not(:disabled) {
+    background: #f8f9fa;
+    border-color: #adb5bd;
+    transform: translateY(-1px);
+  }
+
+  &.active {
+    background: #dc3545;
+    color: white;
+    border-color: #dc3545;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    
+    &:hover {
+      background: white;
+      border-color: #dee2e6;
+    }
+  }
+
+  @media (max-width: 480px) {
+    padding: 0.5rem 0.8rem;
+    font-size: 0.8rem;
+    min-width: 40px;
   }
 `
 
@@ -259,12 +348,16 @@ export default function HomePage() {
   const [showSettings, setShowSettings] = useState(false)
   const [showSkillsEdit, setShowSkillsEdit] = useState(false)
   const [skillsLoading, setSkillsLoading] = useState(false)
+  const [showProjectManage, setShowProjectManage] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
   const [skills, setSkills] = useState({
     frontend: ['React', 'Vue.js', 'JavaScript', 'TypeScript', 'HTML', 'CSS'],
     backend: ['Node.js', 'Express', 'Python', 'Django'],
     database: ['MySQL', 'PostgreSQL', 'MongoDB', 'Supabase'],
     tools: ['Git', 'Docker', 'Figma', 'VS Code']
   })
+  
+  const ITEMS_PER_PAGE = 6
 
   // 앱 목록 불러오기
   const fetchApps = async () => {
@@ -303,13 +396,29 @@ export default function HomePage() {
   const confirmDelete = async (password: string) => {
     setModalLoading(true)
     try {
-      const response = await fetch(`/api/apps/${deleteAppId}`, {
+      const storedPassword = getStoredPassword()
+      let response: Response
+      
+      // 1. localStorage 비밀번호로 먼저 시도
+      response = await fetch(`/api/apps/${deleteAppId}`, {
         method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ admin_password: password })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ admin_password: storedPassword })
       })
+
+      // 2. 실패하면 사용자 입력 비밀번호로 시도
+      if (!response.ok && password && password !== storedPassword) {
+        response = await fetch(`/api/apps/${deleteAppId}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ admin_password: password })
+        })
+        
+        // 사용자 입력으로 성공하면 localStorage에도 저장
+        if (response.ok) {
+          localStorage.setItem('adminPassword', password)
+        }
+      }
 
       if (response.ok) {
         fetchApps()
@@ -333,6 +442,32 @@ export default function HomePage() {
     setModalLoading(false)
   }
 
+  // 프로젝트 관리 모달 관련
+  const handleProjectManage = () => {
+    setShowProjectManage(true)
+  }
+
+  const handleBulkDelete = async (ids: number[]) => {
+    const storedPassword = getStoredPassword()
+    const deletePromises = ids.map(id => 
+      fetch(`/api/apps/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ admin_password: storedPassword })
+      })
+    )
+
+    try {
+      await Promise.all(deletePromises)
+      await fetchApps() // 목록 새로고침
+    } catch (error) {
+      console.error('일괄 삭제 중 오류:', error)
+      alert('일부 항목 삭제에 실패했습니다.')
+    }
+  }
+
   const handleFormSubmit = () => {
     setShowForm(false)
     setEditingApp(null)
@@ -343,13 +478,28 @@ export default function HomePage() {
     setShowSkillsEdit(true)
   }
 
-  const handleSkillsSave = async (newSkills: typeof skills) => {
+  const handleSkillsSave = async (newSkills: typeof skills, adminPassword: string) => {
     setSkillsLoading(true)
     try {
-      localStorage.setItem('portfolio_skills', JSON.stringify(newSkills))
-      setSkills(newSkills)
-      setShowSkillsEdit(false)
-      alert('스킬이 성공적으로 저장되었습니다!')
+      const storedPassword = getStoredPassword()
+      
+      // 관리자 비밀번호 검증 (localStorage 우선, 그 다음 기본값)
+      if (adminPassword.trim() === storedPassword || 
+          (storedPassword !== 'deokslife' && adminPassword.trim() === 'deokslife')) {
+        
+        // 기본 비밀번호로 성공하면 localStorage에 저장
+        if (adminPassword.trim() === 'deokslife' && storedPassword !== 'deokslife') {
+          localStorage.setItem('adminPassword', adminPassword.trim())
+        }
+        
+        localStorage.setItem('portfolio_skills', JSON.stringify(newSkills))
+        setSkills(newSkills)
+        setShowSkillsEdit(false)
+        alert('스킬이 성공적으로 저장되었습니다!')
+      } else {
+        alert('관리자 비밀번호가 일치하지 않습니다.')
+        return
+      }
     } catch (error) {
       console.error('스킬 저장 실패:', error)
       alert('스킬 저장에 실패했습니다.')
@@ -375,6 +525,21 @@ export default function HomePage() {
     }
   }, [])
 
+  // 페이지네이션 관련 계산
+  const totalPages = Math.ceil(apps.length / ITEMS_PER_PAGE)
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
+  const endIndex = startIndex + ITEMS_PER_PAGE
+  const currentApps = apps.slice(startIndex, endIndex)
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page)
+    // 페이지 변경 시 프로젝트 섹션으로 스크롤
+    const projectsSection = document.getElementById('projects-section')
+    if (projectsSection) {
+      projectsSection.scrollIntoView({ behavior: 'smooth' })
+    }
+  }
+
   if (loading) {
     return (
       <Container>
@@ -390,7 +555,6 @@ export default function HomePage() {
       {/* Header */}
       <Header 
         appCount={apps.length}
-        onSettingsClick={() => setShowSettings(true)}
       />
       
       {/* About Me Section */}
@@ -401,12 +565,12 @@ export default function HomePage() {
             <AboutItem>
               <span className="icon">👤</span>
               <div className="label">이름</div>
-              <div className="value">웹앱 포트폴리오</div>
+              <div className="value">이은덕</div>
             </AboutItem>
             <AboutItem>
               <span className="icon">📧</span>
               <div className="label">이메일</div>
-              <div className="value">contact@portfolio.com</div>
+              <div className="value">deokslife@naver.com</div>
             </AboutItem>
             <AboutItem>
               <span className="icon">📍</span>
@@ -479,7 +643,7 @@ export default function HomePage() {
       </SkillsSection>
       
       {/* Projects Section */}
-      <ProjectsSection>
+      <ProjectsSection id="projects-section">
         <Main>
           <SectionTitle>PROJECTS</SectionTitle>
           {apps.length === 0 ? (
@@ -488,20 +652,56 @@ export default function HomePage() {
               <p>+ 버튼을 클릭해서 첫 번째 웹앱을 추가해보세요!</p>
             </EmptyState>
           ) : (
-            <AppsGrid>
-              {apps.map((app) => (
-                <AppCard
-                  key={app.id}
-                  app={app}
-                  onEdit={handleEditApp}
-                  onDelete={handleDeleteApp}
-                />
-              ))}
-            </AppsGrid>
+            <>
+              <AppsGrid>
+                {currentApps.map((app) => (
+                  <AppCard
+                    key={app.id}
+                    app={app}
+                    onEdit={handleEditApp}
+                    onDelete={handleDeleteApp}
+                  />
+                ))}
+              </AppsGrid>
+              
+              {totalPages > 1 && (
+                <PaginationContainer>
+                  <PaginationInfo>
+                    {apps.length}개 프로젝트 중 {startIndex + 1}-{Math.min(endIndex, apps.length)}번째
+                  </PaginationInfo>
+                  <Pagination>
+                    <PageButton
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                    >
+                      ‹ 이전
+                    </PageButton>
+                    
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                      <PageButton
+                        key={page}
+                        onClick={() => handlePageChange(page)}
+                        className={currentPage === page ? 'active' : ''}
+                      >
+                        {page}
+                      </PageButton>
+                    ))}
+                    
+                    <PageButton
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                    >
+                      다음 ›
+                    </PageButton>
+                  </Pagination>
+                </PaginationContainer>
+              )}
+            </>
           )}
         </Main>
       </ProjectsSection>
       
+      <ManageButton onClick={handleProjectManage}>🗂️</ManageButton>
       <AddButton onClick={handleAddApp}>+</AddButton>
       
       {showForm && (
@@ -535,6 +735,14 @@ export default function HomePage() {
           onSave={handleSkillsSave}
           onCancel={cancelSkillsEdit}
           loading={skillsLoading}
+        />
+      )}
+
+      {showProjectManage && (
+        <ProjectManageModal
+          apps={apps}
+          onClose={() => setShowProjectManage(false)}
+          onDelete={handleBulkDelete}
         />
       )}
     </Container>

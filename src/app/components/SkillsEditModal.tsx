@@ -56,6 +56,33 @@ const TextArea = styled.textarea`
   }
 `
 
+const Input = styled.input`
+  width: 100%;
+  padding: 0.8rem;
+  border: 2px solid #e1e5e9;
+  border-radius: 10px;
+  font-size: 1rem;
+  transition: border-color 0.3s ease;
+  background: rgba(255, 255, 255, 0.8);
+
+  &:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  }
+`
+
+const FormGroup = styled.div`
+  margin-bottom: 1.5rem;
+`
+
+const Label = styled.label`
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #555;
+  font-weight: 500;
+`
+
 const Actions = styled.div`
   display: flex;
   gap: 1rem;
@@ -91,7 +118,7 @@ interface Skills {
 
 interface SkillsEditModalProps {
   skills: Skills;
-  onSave: (skills: Skills) => void;
+  onSave: (skills: Skills, adminPassword: string) => void;
   onCancel: () => void;
   loading: boolean;
 }
@@ -103,6 +130,7 @@ export default function SkillsEditModal({ skills, onSave, onCancel, loading }: S
     database: skills.database.join(', '),
     tools: skills.tools.join(', ')
   })
+  const [adminPassword, setAdminPassword] = useState('')
 
   const handleChange = (category: string, value: string) => {
     setEditedSkills(prev => ({
@@ -112,20 +140,45 @@ export default function SkillsEditModal({ skills, onSave, onCancel, loading }: S
   }
 
   const handleSave = () => {
+    if (!adminPassword.trim()) {
+      alert('관리자 비밀번호를 입력해주세요.')
+      return
+    }
+
     const newSkills = {
       frontend: editedSkills.frontend.split(',').map(s => s.trim()).filter(Boolean),
       backend: editedSkills.backend.split(',').map(s => s.trim()).filter(Boolean),
       database: editedSkills.database.split(',').map(s => s.trim()).filter(Boolean),
       tools: editedSkills.tools.split(',').map(s => s.trim()).filter(Boolean)
     }
-    onSave(newSkills)
+    onSave(newSkills, adminPassword)
+  }
+
+  const handleOverlayClick = (e: React.MouseEvent) => {
+    // 드래그 중이거나 텍스트 선택이 있으면 모달을 닫지 않음
+    const selection = window.getSelection()
+    if (e.target === e.currentTarget && (!selection || !selection.toString())) {
+      onCancel()
+    }
   }
 
   return (
-    <Overlay onClick={(e) => e.target === e.currentTarget && onCancel()}>
+    <Overlay onClick={handleOverlayClick}>
       <Modal>
         <Title>✏️ 스킬 편집</Title>
         
+        <FormGroup>
+          <Label htmlFor="admin_password">관리자 비밀번호 *</Label>
+          <Input
+            type="password"
+            id="admin_password"
+            value={adminPassword}
+            onChange={(e) => setAdminPassword(e.target.value)}
+            required
+            placeholder="관리자 비밀번호를 입력하세요"
+          />
+        </FormGroup>
+
         <Category>
           <CategoryTitle>💻 Frontend</CategoryTitle>
           <TextArea

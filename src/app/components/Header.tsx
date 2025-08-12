@@ -73,22 +73,18 @@ const StatItem = styled.div`
 
 interface HeaderProps {
   appCount: number;
-  onSettingsClick: () => void;
 }
 
-export default function Header({ appCount = 0, onSettingsClick }: HeaderProps) {
+export default function Header({ appCount = 0 }: HeaderProps) {
   return (
     <HeaderContainer>
       <HeaderContent>
         <Brand>
-          <Title>CDG&apos;s Portfolio</Title>
+          <Title>EunDeok&apos;s AI Vibe Coding Portfolio</Title>
         </Brand>
         <Stats>
           <StatItem>
             프로젝트 {appCount}개
-          </StatItem>
-          <StatItem onClick={onSettingsClick}>
-            관리
           </StatItem>
         </Stats>
       </HeaderContent>

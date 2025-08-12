@@ -1,6 +1,9 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import styled from 'styled-components'
+import { getStoredPassword } from '../utils/passwordUtils'
+import FileUpload from './FileUpload'
+import { deleteStorageFileByUrl } from '../utils/storageUtils'
 
 const Overlay = styled.div`
   position: fixed;
@@ -128,6 +131,111 @@ const Button = styled.button`
   }
 `
 
+const ImageUploadArea = styled.div<{ isDragging: boolean }>`
+  border: 2px dashed ${props => props.isDragging ? '#667eea' : '#e1e5e9'};
+  border-radius: 10px;
+  padding: 2rem;
+  text-align: center;
+  background: ${props => props.isDragging ? 'rgba(102, 126, 234, 0.05)' : 'rgba(255, 255, 255, 0.8)'};
+  cursor: pointer;
+  transition: all 0.3s ease;
+
+  &:hover {
+    border-color: #667eea;
+    background: rgba(102, 126, 234, 0.05);
+  }
+
+  .upload-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    display: block;
+    color: #667eea;
+  }
+
+  .upload-text {
+    color: #555;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .upload-hint {
+    color: #999;
+    font-size: 0.8rem;
+  }
+`
+
+const ImagePreview = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid #e1e5e9;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.8);
+
+  img {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 8px;
+  }
+
+  .image-info {
+    flex: 1;
+    
+    .filename {
+      font-weight: 500;
+      color: #333;
+      margin-bottom: 0.25rem;
+    }
+    
+    .filesize {
+      font-size: 0.8rem;
+      color: #666;
+    }
+  }
+
+  .remove-btn {
+    background: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 0.5rem;
+    cursor: pointer;
+    font-size: 0.8rem;
+    
+    &:hover {
+      background: #c82333;
+    }
+  }
+`
+
+const UploadProgress = styled.div`
+  margin-top: 1rem;
+  
+  .progress-bar {
+    width: 100%;
+    height: 4px;
+    background: #e1e5e9;
+    border-radius: 2px;
+    overflow: hidden;
+    
+    .progress-fill {
+      height: 100%;
+      background: #667eea;
+      transition: width 0.3s ease;
+    }
+  }
+  
+  .progress-text {
+    text-align: center;
+    font-size: 0.8rem;
+    color: #666;
+    margin-top: 0.5rem;
+  }
+`
+
 interface App {
   id: number;
   title: string;
@@ -136,6 +244,19 @@ interface App {
   github_url?: string;
   image_url?: string;
   tech_stack?: string;
+  category?: string;
+  development_date?: string;
+  download_url?: string;
+  download_filename?: string;
+  download_filesize?: number;
+}
+
+interface UploadedFile {
+  url: string;
+  fileName: string;
+  originalName: string;
+  fileSize: number;
+  fileType: string;
 }
 
 interface AppFormProps {
@@ -152,9 +273,20 @@ export default function AppForm({ app, onSubmit, onCancel }: AppFormProps) {
     github_url: '',
     image_url: '',
     tech_stack: '',
+    category: '웹 프로젝트',
+    development_date: '',
+    download_url: '',
+    download_filename: '',
+    download_filesize: 0,
     admin_password: ''
   })
   const [loading, setLoading] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [isUploading, setIsUploading] = useState(false)
+  const [uploadedImage, setUploadedImage] = useState<{url: string, filename: string, size: number} | null>(null)
+  const [uploadedFile, setUploadedFile] = useState<UploadedFile | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (app) {
@@ -165,8 +297,29 @@ export default function AppForm({ app, onSubmit, onCancel }: AppFormProps) {
         github_url: app.github_url || '',
         image_url: app.image_url || '',
         tech_stack: app.tech_stack || '',
-        admin_password: ''
+        category: (app as any).category || '웹 프로젝트',
+        development_date: (app as any).development_date || '',
+        download_url: (app as any).download_url || '',
+        download_filename: (app as any).download_filename || '',
+        download_filesize: (app as any).download_filesize || 0,
+        admin_password: '' // 사용자가 직접 입력하도록
       })
+      if (app.image_url) {
+        setUploadedImage({
+          url: app.image_url,
+          filename: 'existing-image.jpg',
+          size: 0
+        })
+      }
+      if ((app as any).download_url) {
+        setUploadedFile({
+          url: (app as any).download_url,
+          fileName: (app as any).download_filename || 'existing-file',
+          originalName: (app as any).download_filename || 'existing-file',
+          fileSize: (app as any).download_filesize || 0,
+          fileType: 'application/octet-stream'
+        })
+      }
     }
   }, [app])
 
@@ -177,27 +330,206 @@ export default function AppForm({ app, onSubmit, onCancel }: AppFormProps) {
     })
   }
 
+  const handleImageUpload = async (file: File) => {
+    setIsUploading(true)
+    setUploadProgress(0)
+
+    try {
+      // 기존 이미지가 있다면 Storage에서 삭제
+      if (uploadedImage?.url && !uploadedImage.url.startsWith('data:')) {
+        try {
+          await deleteStorageFileByUrl(uploadedImage.url, 'project-images')
+        } catch (error) {
+          console.error('Error deleting old image:', error)
+        }
+      }
+
+      const formDataUpload = new FormData()
+      formDataUpload.append('file', file)
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formDataUpload
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setUploadedImage({
+          url: data.url,
+          filename: data.fileName,
+          size: file.size
+        })
+        setFormData({
+          ...formData,
+          image_url: data.url
+        })
+        setUploadProgress(100)
+      } else {
+        const errorData = await response.json()
+        alert(errorData.error || '이미지 업로드에 실패했습니다.')
+      }
+    } catch (error) {
+      console.error('이미지 업로드 오류:', error)
+      alert('이미지 업로드 중 오류가 발생했습니다.')
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+    
+    const files = Array.from(e.dataTransfer.files)
+    const imageFile = files.find(file => file.type.startsWith('image/'))
+    
+    if (imageFile) {
+      handleImageUpload(imageFile)
+    } else {
+      alert('이미지 파일만 업로드할 수 있습니다.')
+    }
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+  }
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file && file.type.startsWith('image/')) {
+      handleImageUpload(file)
+    }
+  }
+
+  const handleUploadAreaClick = () => {
+    fileInputRef.current?.click()
+  }
+
+  const removeUploadedImage = async () => {
+    // Storage에서 이미지 삭제
+    if (uploadedImage?.url && !uploadedImage.url.startsWith('data:')) {
+      try {
+        await deleteStorageFileByUrl(uploadedImage.url, 'project-images')
+      } catch (error) {
+        console.error('Error deleting image:', error)
+      }
+    }
+
+    setUploadedImage(null)
+    setFormData({
+      ...formData,
+      image_url: ''
+    })
+  }
+
+  const handleFileUploaded = async (file: UploadedFile) => {
+    // 기존 파일이 있다면 Storage에서 삭제
+    if (uploadedFile?.url && !uploadedFile.url.startsWith('data:')) {
+      try {
+        await deleteStorageFileByUrl(uploadedFile.url, 'project-files')
+      } catch (error) {
+        console.error('Error deleting old file:', error)
+      }
+    }
+
+    setUploadedFile(file)
+    setFormData({
+      ...formData,
+      download_url: file.url,
+      download_filename: file.originalName,
+      download_filesize: file.fileSize
+    })
+  }
+
+  const handleFileRemoved = async () => {
+    // Storage에서 파일 삭제
+    if (uploadedFile?.url && !uploadedFile.url.startsWith('data:')) {
+      try {
+        await deleteStorageFileByUrl(uploadedFile.url, 'project-files')
+      } catch (error) {
+        console.error('Error deleting file:', error)
+      }
+    }
+
+    setUploadedFile(null)
+    setFormData({
+      ...formData,
+      download_url: '',
+      download_filename: '',
+      download_filesize: 0
+    })
+  }
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes'
+    const k = 1024
+    const sizes = ['Bytes', 'KB', 'MB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
 
     try {
+      // 비밀번호가 입력되지 않은 경우 에러
+      if (!formData.admin_password.trim()) {
+        alert('관리자 비밀번호를 입력해주세요.')
+        return
+      }
+
       const method = app ? 'PUT' : 'POST'
       const url = app ? `/api/apps/${app.id}` : '/api/apps'
       
+      console.log('Checking entered password')
+      
+      // 입력된 비밀번호 검증
+      const checkResponse = await fetch('/api/password-check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: formData.admin_password.trim() })
+      })
+      
+      if (!checkResponse.ok) {
+        console.error('Password check request failed:', checkResponse.status)
+        alert('비밀번호 검증 중 오류가 발생했습니다.')
+        return
+      }
+
+      const result = await checkResponse.json()
+      console.log('Password check result:', result)
+      
+      if (!result.valid) {
+        alert('관리자 비밀번호가 일치하지 않습니다.')
+        return
+      }
+      
+      // 유효한 비밀번호를 localStorage에 동기화
+      localStorage.setItem('adminPassword', formData.admin_password.trim())
+      
+      console.log('Password validated, saving app')
+      
+      // 유효한 비밀번호로 앱 저장
       const response = await fetch(url, {
         method,
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
       })
 
       if (response.ok) {
+        console.log('App saved successfully')
         onSubmit()
       } else {
         const data = await response.json()
-        alert(data.error || '저장에 실패했습니다.')
+        console.error('App save error:', data)
+        alert(data.error || `저장에 실패했습니다. (${response.status})`)
       }
     } catch (error) {
       console.error('앱 저장에 실패했습니다:', error)
@@ -219,6 +551,20 @@ export default function AppForm({ app, onSubmit, onCancel }: AppFormProps) {
         <Title>{app ? '앱 수정' : '새 앱 추가'}</Title>
         
         <form onSubmit={handleSubmit}>
+          <FormGroup>
+            <Label htmlFor="admin_password">관리자 비밀번호 *</Label>
+            <Input
+              type="password"
+              id="admin_password"
+              name="admin_password"
+              value={formData.admin_password}
+              onChange={handleChange}
+              placeholder="프로젝트 저장을 위해 관리자 비밀번호를 입력하세요"
+              title="비밀번호 변경은 🗂️ 관리 버튼에서 가능합니다"
+              required
+            />
+          </FormGroup>
+
           <FormGroup>
             <Label htmlFor="title">앱 이름 *</Label>
             <Input
@@ -256,27 +602,115 @@ export default function AppForm({ app, onSubmit, onCancel }: AppFormProps) {
           </FormGroup>
 
           <FormGroup>
-            <Label htmlFor="image_url">이미지 URL</Label>
+            <Label htmlFor="github_url">GitHub URL</Label>
+            <Input
+              type="url"
+              id="github_url"
+              name="github_url"
+              value={formData.github_url}
+              onChange={handleChange}
+              placeholder="https://github.com/username/repo"
+            />
+          </FormGroup>
+
+          <FormGroup>
+            <Label htmlFor="tech_stack">기술 스택</Label>
+            <Input
+              type="text"
+              id="tech_stack"
+              name="tech_stack"
+              value={formData.tech_stack}
+              onChange={handleChange}
+              placeholder="React, Node.js, MongoDB 등"
+            />
+          </FormGroup>
+
+          <FormGroup>
+            <Label htmlFor="category">프로젝트 분류</Label>
+            <Input
+              type="text"
+              id="category"
+              name="category"
+              value={formData.category}
+              onChange={handleChange}
+              placeholder="웹 프로젝트, 모바일 앱, 데스크톱 프로그램 등"
+            />
+          </FormGroup>
+
+          <FormGroup>
+            <Label htmlFor="development_date">개발 시기</Label>
+            <Input
+              type="month"
+              id="development_date"
+              name="development_date"
+              value={formData.development_date}
+              onChange={handleChange}
+            />
+          </FormGroup>
+
+          <FormGroup>
+            <Label htmlFor="image_upload">이미지</Label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileSelect}
+              style={{ display: 'none' }}
+            />
+            
+            {!uploadedImage && !isUploading && (
+              <ImageUploadArea
+                isDragging={isDragging}
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onClick={handleUploadAreaClick}
+              >
+                <span className="upload-icon">📸</span>
+                <div className="upload-text">이미지를 드래그하거나 클릭해서 업로드</div>
+                <div className="upload-hint">JPG, PNG, GIF, WebP (최대 5MB)</div>
+              </ImageUploadArea>
+            )}
+            
+            {isUploading && (
+              <UploadProgress>
+                <div className="progress-bar">
+                  <div className="progress-fill" style={{ width: `${uploadProgress}%` }} />
+                </div>
+                <div className="progress-text">업로드 중...</div>
+              </UploadProgress>
+            )}
+            
+            {uploadedImage && (
+              <ImagePreview>
+                <img src={uploadedImage.url} alt="업로드된 이미지" />
+                <div className="image-info">
+                  <div className="filename">{uploadedImage.filename}</div>
+                  <div className="filesize">{formatFileSize(uploadedImage.size)}</div>
+                </div>
+                <button type="button" className="remove-btn" onClick={removeUploadedImage}>
+                  삭제
+                </button>
+              </ImagePreview>
+            )}
+            
             <Input
               type="url"
               id="image_url"
               name="image_url"
               value={formData.image_url}
               onChange={handleChange}
-              placeholder="https://example.com/image.jpg"
+              placeholder="또는 직접 이미지 URL을 입력하세요"
+              style={{ marginTop: '1rem' }}
             />
           </FormGroup>
 
           <FormGroup>
-            <Label htmlFor="admin_password">관리자 비밀번호 *</Label>
-            <Input
-              type="password"
-              id="admin_password"
-              name="admin_password"
-              value={formData.admin_password}
-              onChange={handleChange}
-              required
-              placeholder="관리자 비밀번호를 입력하세요"
+            <Label htmlFor="program_file">프로그램 다운로드 파일</Label>
+            <FileUpload
+              onFileUploaded={handleFileUploaded}
+              currentFile={uploadedFile}
+              onFileRemoved={handleFileRemoved}
             />
           </FormGroup>
 
@@ -285,7 +719,7 @@ export default function AppForm({ app, onSubmit, onCancel }: AppFormProps) {
               취소
             </Button>
             <Button type="submit" className="primary" disabled={loading}>
-              {app ? '수정하기' : '추가하기'}
+              {loading ? '저장 중...' : (app ? '수정하기' : '추가하기')}
             </Button>
           </Actions>
         </form>
